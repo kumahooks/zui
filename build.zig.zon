@@ -1,0 +1,17 @@
+.{
+    .name = .kengine,
+    .version = "0.0.0",
+    .fingerprint = 0x4db77c4f873dcb58,
+    .minimum_zig_version = "0.17.0",
+    .dependencies = .{
+        .raylib_zig = .{
+            .url = "git+https://github.com/raylib-zig/raylib-zig?ref=devel#f6de93c03197260df941b36ddf3b8dab12bcd393",
+            .hash = "raylib_zig-6.0.0-KE8REN2mBQC2nQqk9ILHtZgMfQ-3tZpKCvyhmyUPra_3",
+        },
+    },
+    .paths = .{
+        "build.zig",
+        "build.zig.zon",
+        "src",
+    },
+}
