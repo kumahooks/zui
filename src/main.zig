@@ -3,30 +3,26 @@
 const raygui = @import("raygui");
 const raylib = @import("raylib");
 
-pub fn main() !void {
-    raylib.initWindow(600, 600, "Calenduwu");
-    raylib.setTargetFPS(60);
+const consts = @import("consts.zig");
 
-    var button_clicked: bool = false;
+pub fn main() !void {
+    raylib.setConfigFlags(consts.raylib_config_flags);
+    raylib.setTargetFPS(consts.raylib_target_fps);
+
+    raylib.initWindow(consts.window_width, consts.window_height, consts.window_title);
+
+    const font = raylib.loadFontFromMemory(".ttf", consts.font_embed, 32, null) catch font: {
+        const default_font = raylib.getFontDefault() catch @panic("default font unavailable");
+        break :font default_font;
+    };
+
     while (!raylib.windowShouldClose()) {
         raylib.beginDrawing();
 
-        const background: i32 = raygui.getStyle(.default, .background_color);
-        raylib.clearBackground(raylib.getColor(@bitCast(background)));
+        raylib.clearBackground(consts.color_opaque_bg);
 
-        if (raygui.button(raylib.Rectangle.init(24, 24, 120, 30), "owo")) {
-            button_clicked = true;
-        }
-
-        if (button_clicked) {
-            var button_active: i32 = -1;
-
-            _ = raygui.messageBox(raylib.Rectangle.init(85, 70, 250, 100), "owo", "uwu", "ovo?", &button_active);
-
-            if (button_active >= 0) {
-                button_clicked = false;
-            }
-        }
+        raylib.drawLine(0, 25, raylib.getRenderWidth(), 25, consts.color_brand);
+        raylib.drawTextPro(font, consts.window_title, consts.position_window_title, consts.position_origin, 0, consts.font_size, 1, consts.color_brand);
 
         raylib.endDrawing();
     }
