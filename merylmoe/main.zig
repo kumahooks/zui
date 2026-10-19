@@ -1,8 +1,8 @@
 //! The main function of the application.
 
 const raylib = @import("raylib");
+const zui = @import("zui");
 
-const button = @import("button.zig");
 const consts = @import("consts.zig");
 
 pub fn main() !void {
@@ -29,14 +29,9 @@ pub fn main() !void {
         raylib.drawLine(0, consts.header_height, window_width, consts.header_height, consts.color_brand);
         // draws the header title.
         _ = drawTextFromLeft(consts.window_title, consts.header_horizontal_padding, 0, font);
-        // draws the header action buttons.
-        const header_actions = [_][:0]const u8{ "X", "O", "_" };
-        var right_edge = @as(f32, @floatFromInt(raylib.getRenderWidth())) - consts.header_horizontal_padding;
-        for (header_actions) |label| {
-            const width = raylib.measureTextEx(font, label, consts.font_size, consts.font_spacing).x;
-            raylib.drawTextPro(font, label, .{ .x = right_edge - width, .y = 0 }, consts.position_origin_left, 0, consts.font_size, consts.font_spacing, consts.color_brand);
-            right_edge -= width + consts.header_horizontal_padding;
-        }
+        // draws the exit button.
+        const exit_button = zui.button.TextButton.init("X", 0, 0, consts.header_horizontal_padding, font);
+        exit_button.drawFromRight();
 
         raylib.endDrawing();
     }

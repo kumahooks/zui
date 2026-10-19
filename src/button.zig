@@ -1,5 +1,3 @@
-//! The implementation of a UI button.
-
 const raylib = @import("raylib");
 
 const consts = @import("consts.zig");

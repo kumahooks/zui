@@ -17,8 +17,6 @@ pub const font_size = 24;
 pub const font_spacing = 1;
 
 pub const position_origin_left = raylib.Vector2{ .x = 0, .y = 0 };
-pub const position_window_title = raylib.Vector2{ .x = 10, .y = 2 };
-pub const position_exit = raylib.Vector2{ .x = 50, .y = 2 };
 
 pub const header_height = 22;
 pub const header_horizontal_padding = 10;

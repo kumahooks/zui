@@ -29,6 +29,7 @@ pub fn build(b: *std.Build) void {
             .optimize = optimize,
             .imports = &.{
                 .{ .name = "raylib", .module = raylib },
+                .{ .name = "zui", .module = zui },
             },
         }) });
         b.installArtifact(merylmoe);
