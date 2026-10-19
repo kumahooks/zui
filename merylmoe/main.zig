@@ -1,6 +1,5 @@
 //! The main function of the application.
 
-const raygui = @import("raygui");
 const raylib = @import("raylib");
 
 const button = @import("button.zig");
