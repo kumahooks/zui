@@ -13,7 +13,13 @@ pub const Orchestrator = struct {
     focus_item: i32,
 
     pub fn init(origin_left_position: raylib.Vector2) Self {
-        return .{ .origin_left_position = origin_left_position, .mouse_position = raylib.getMousePosition(), .mouse_down = false, .hover_item = 0, .focus_item = 0 };
+        return .{
+            .origin_left_position = origin_left_position,
+            .mouse_position = raylib.getMousePosition(),
+            .mouse_down = false,
+            .hover_item = 0,
+            .focus_item = 0,
+        };
     }
 
     pub fn update_start(self: *Self) void {

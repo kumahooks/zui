@@ -28,10 +28,25 @@ pub fn main() !void {
         orchestrator.update_start();
 
         var buffer: [64]u8 = undefined;
-        const coordinate: [:0]u8 = try std.mem.printSentinel(&buffer, "{d:.0}, {d:.0}", .{ orchestrator.mouse_position.x, orchestrator.mouse_position.y }, 0);
+        const coordinate: [:0]u8 = try std.mem.printSentinel(
+            &buffer,
+            "{d:.0}, {d:.0}",
+            .{
+                orchestrator.mouse_position.x,
+                orchestrator.mouse_position.y,
+            },
+            0,
+        );
         _ = drawTextFromLeft(coordinate, consts.header_horizontal_padding, 0, font);
 
-        const button = zui.Button.TextButton.init("owo", font, consts.font_size, consts.font_spacing, consts.color_brand, consts.color_brand_hovered);
+        const button = zui.Button.TextButton.init(
+            "owo",
+            font,
+            consts.font_size,
+            consts.font_spacing,
+            consts.color_brand,
+            consts.color_brand_hovered,
+        );
         if (button.render(&orchestrator, 1, raylib.Vector2{ .x = 250, .y = 250 })) {
             _ = drawTextFromLeft("hold", 250, 300, font);
         }
@@ -47,7 +62,16 @@ pub fn main() !void {
 // drawTextFromLeft draws text from left origin position + margin_left.
 // returns the drawn text size.
 fn drawTextFromLeft(text: [:0]const u8, margin_left: f32, y: f32, font: raylib.Font) f32 {
-    raylib.drawTextPro(font, text, .{ .x = margin_left, .y = y }, consts.position_origin_left, 0, consts.font_size, consts.font_spacing, consts.color_brand);
+    raylib.drawTextPro(
+        font,
+        text,
+        .{ .x = margin_left, .y = y },
+        consts.position_origin_left,
+        0,
+        consts.font_size,
+        consts.font_spacing,
+        consts.color_brand,
+    );
 
     return raylib.measureTextEx(font, text, consts.font_size, consts.font_spacing).x;
 }
@@ -59,7 +83,16 @@ fn drawTextFromRight(text: [:0]const u8, margin_right: f32, y: f32, font: raylib
     const right_edge = @as(f32, @floatFromInt(raylib.getRenderWidth()));
     const x = right_edge - text_size_vector.x - margin_right;
 
-    raylib.drawTextPro(font, text, .{ .x = x, .y = y }, consts.position_origin_left, 0, consts.font_size, consts.font_spacing, consts.color_brand);
+    raylib.drawTextPro(
+        font,
+        text,
+        .{ .x = x, .y = y },
+        consts.position_origin_left,
+        0,
+        consts.font_size,
+        consts.font_spacing,
+        consts.color_brand,
+    );
 
     return text_size_vector.x;
 }
