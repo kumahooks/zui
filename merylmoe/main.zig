@@ -25,7 +25,7 @@ pub fn main() !void {
         raylib.beginDrawing();
         raylib.clearBackground(consts.color_opaque_bg);
 
-        orchestrator.update_start();
+        orchestrator.updateStart();
 
         var buffer: [64]u8 = undefined;
         const coordinate: [:0]u8 = try std.mem.printSentinel(
@@ -39,7 +39,7 @@ pub fn main() !void {
         );
         _ = drawTextFromLeft(coordinate, consts.header_horizontal_padding, 0, font);
 
-        const button = zui.Button.TextButton.init(
+        const button = zui.button.TextButton.init(
             "owo",
             font,
             consts.font_size,
@@ -47,11 +47,11 @@ pub fn main() !void {
             consts.color_brand,
             consts.color_brand_hovered,
         );
-        if (button.render(&orchestrator, 1, raylib.Vector2{ .x = 250, .y = 250 })) {
+        if (button.render(&orchestrator, raylib.Vector2{ .x = 250, .y = 250 })) {
             _ = drawTextFromLeft("hold", 250, 300, font);
         }
 
-        orchestrator.update_finish();
+        orchestrator.updateFinish();
 
         raylib.endDrawing();
     }

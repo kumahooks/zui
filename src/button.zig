@@ -13,14 +13,9 @@ pub const TextButton = struct {
     font_idle_color: raylib.Color,
     font_hovered_color: raylib.Color,
 
-    pub fn init(
-        label: [:0]const u8,
-        font: raylib.Font,
-        font_size: f32,
-        font_spacing: f32,
-        font_idle_color: raylib.Color,
-        font_hovered_color: raylib.Color,
-    ) Self {
+    // TODO: styling a button is out of scope for now... but should it really be initiated like this?
+    // need to think better about this and how other widgets will be expressed later.
+    pub fn init(label: [:0]const u8, font: raylib.Font, font_size: f32, font_spacing: f32, font_idle_color: raylib.Color, font_hovered_color: raylib.Color) Self {
         return .{
             .label = label,
             .font = font,
@@ -31,30 +26,32 @@ pub const TextButton = struct {
         };
     }
 
-    pub fn render(self: Self, orchestrator: *zui.Orchestrator, id: i32, coordinate: raylib.Vector2) bool {
+    // TODO: differ from hold and click eventually.
+    pub fn render(self: Self, orchestrator: *zui.Orchestrator, coordinate: raylib.Vector2) bool {
         const label_size = raylib.measureTextEx(self.font, self.label, self.font_size, self.font_spacing);
+        const id = orchestrator.getId(self.label);
 
         // is the button hovered?
-        const is_mouse_in = orchestrator.is_mouse_in(raylib.Rectangle{
+        const is_mouse_in = orchestrator.isMouseIn(raylib.Rectangle{
             .x = coordinate.x,
             .y = coordinate.y,
             .width = label_size.x,
             .height = label_size.y,
         });
         if (is_mouse_in) {
-            orchestrator.set_hovered_item_id(id);
+            orchestrator.setHoveredItemId(id);
 
             // is the button focused?
-            if (orchestrator.focus_item == 0 and orchestrator.mouse_down) {
-                orchestrator.set_focus_item_id(id);
+            if (orchestrator.focus_item_id == zui.id_none and orchestrator.mouse_down) {
+                orchestrator.setFocusItemId(id);
             }
         }
 
-        if (orchestrator.hover_item == id) {
+        if (orchestrator.hover_item_id == id) {
             self.draw(coordinate, orchestrator.origin_left_position, true);
 
             // is the mouse down and the button focused?
-            if (orchestrator.mouse_down and orchestrator.focus_item == id) {
+            if (orchestrator.mouse_down and orchestrator.focus_item_id == id) {
                 return true;
             }
         } else {
