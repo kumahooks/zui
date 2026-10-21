@@ -19,20 +19,24 @@ pub fn main() !void {
         break :font default_font;
     };
 
-    var orchestrator: zui.Orchestrator = zui.Orchestrator.init(font, raylib.Vector2{ .x = 0, .y = 0 });
+    var orchestrator: zui.Orchestrator = zui.Orchestrator.init(raylib.Vector2{ .x = 0, .y = 0 });
 
     while (!raylib.windowShouldClose()) {
         raylib.beginDrawing();
         raylib.clearBackground(consts.color_opaque_bg);
 
-        orchestrator.update();
+        orchestrator.update_start();
 
         var buffer: [64]u8 = undefined;
-        const coordinate: [:0]u8 = try std.mem.printSentinel(&buffer, "{d}, {d}", .{ orchestrator.mouse_position.x, orchestrator.mouse_position.y }, 0);
+        const coordinate: [:0]u8 = try std.mem.printSentinel(&buffer, "{d:.0}, {d:.0}", .{ orchestrator.mouse_position.x, orchestrator.mouse_position.y }, 0);
         _ = drawTextFromLeft(coordinate, consts.header_horizontal_padding, 0, font);
 
-        const button = zui.Button.TextButton.init("owo", font, consts.font_size, consts.font_spacing, consts.color_brand, consts.color_brand_hot);
-        _ = button.render(&orchestrator, 1, raylib.Vector2{ .x = 250, .y = 250 });
+        const button = zui.Button.TextButton.init("owo", font, consts.font_size, consts.font_spacing, consts.color_brand, consts.color_brand_hovered);
+        if (button.render(&orchestrator, 1, raylib.Vector2{ .x = 250, .y = 250 })) {
+            _ = drawTextFromLeft("hold", 250, 300, font);
+        }
+
+        orchestrator.update_finish();
 
         raylib.endDrawing();
     }
