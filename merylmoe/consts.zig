@@ -11,6 +11,7 @@ pub const window_title = "meryl.moe";
 pub const font_embed = @embedFile("assets/3270NerdFont-Regular.ttf");
 
 pub const color_brand = raylib.Color{ .r = 184, .g = 92, .b = 131, .a = 255 };
+pub const color_brand_hot = raylib.Color{ .r = 184, .g = 182, .b = 131, .a = 255 };
 pub const color_opaque_bg = raylib.Color{ .r = 0, .g = 0, .b = 0, .a = 212 };
 
 pub const font_size = 24;

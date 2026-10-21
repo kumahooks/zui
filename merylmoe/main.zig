@@ -1,5 +1,7 @@
 //! The main function of the application.
 
+const std = @import("std");
+
 const raylib = @import("raylib");
 const zui = @import("zui");
 
@@ -17,21 +19,20 @@ pub fn main() !void {
         break :font default_font;
     };
 
+    var orchestrator: zui.Orchestrator = zui.Orchestrator.init(font, raylib.Vector2{ .x = 0, .y = 0 });
+
     while (!raylib.windowShouldClose()) {
         raylib.beginDrawing();
-
-        const window_width = raylib.getRenderWidth();
-
         raylib.clearBackground(consts.color_opaque_bg);
 
-        // header drawing:
-        // draws the header bottom line.
-        raylib.drawLine(0, consts.header_height, window_width, consts.header_height, consts.color_brand);
-        // draws the header title.
-        _ = drawTextFromLeft(consts.window_title, consts.header_horizontal_padding, 0, font);
-        // draws the exit button.
-        const exit_button = zui.button.TextButton.init("X", 0, 0, consts.header_horizontal_padding, font);
-        exit_button.drawFromRight();
+        orchestrator.update();
+
+        var buffer: [64]u8 = undefined;
+        const coordinate: [:0]u8 = try std.mem.printSentinel(&buffer, "{d}, {d}", .{ orchestrator.mouse_position.x, orchestrator.mouse_position.y }, 0);
+        _ = drawTextFromLeft(coordinate, consts.header_horizontal_padding, 0, font);
+
+        const button = zui.Button.TextButton.init("owo", font, consts.font_size, consts.font_spacing, consts.color_brand, consts.color_brand_hot);
+        _ = button.render(&orchestrator, 1, raylib.Vector2{ .x = 250, .y = 250 });
 
         raylib.endDrawing();
     }
@@ -58,12 +59,3 @@ fn drawTextFromRight(text: [:0]const u8, margin_right: f32, y: f32, font: raylib
 
     return text_size_vector.x;
 }
-
-// fn drawTextButton(text: [:0]const u8, font: raylib.Font) void {
-//
-// }
-//
-// fn drawHeaderButtons(font: raylib.Font) void {
-//     const x_width = drawTextFromRight("X", 10, 0, font);
-//     _ = drawTextFromRight("_", 10 * 2 + x_width, 0, font);
-// }

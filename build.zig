@@ -9,7 +9,6 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
     const raylib = raylib_dep.module("raylib");
-    const raylib_artifact = raylib_dep.artifact("raylib");
 
     const zui = b.addModule("zui", .{
         .root_source_file = b.path("src/lib.zig"),
@@ -19,7 +18,6 @@ pub fn build(b: *std.Build) void {
             .{ .name = "raylib", .module = raylib },
         },
     });
-    zui.linkLibrary(raylib_artifact);
 
     // merylmoe is just a "demo" which is not part of the zui library itself.
     if (b.isRoot()) {

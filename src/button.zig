@@ -1,33 +1,41 @@
 const raylib = @import("raylib");
 
-const consts = @import("consts.zig");
+const zui = @import("lib.zig");
 
 pub const TextButton = struct {
     const Self = @This();
 
-    font: raylib.Font,
     label: [:0]const u8,
-    y: f32,
-    margin_left: f32,
-    margin_right: f32,
+    label_size: raylib.Vector2,
 
-    pub fn init(label: [:0]const u8, y: f32, margin_left: f32, margin_right: f32, font: raylib.Font) Self {
-        return .{ .label = label, .y = y, .margin_left = margin_left, .margin_right = margin_right, .font = font };
+    font: raylib.Font,
+    font_size: f32,
+    font_spacing: f32,
+    font_idle_color: raylib.Color,
+    font_hot_color: raylib.Color,
+
+    pub fn init(label: [:0]const u8, font: raylib.Font, font_size: f32, font_spacing: f32, font_idle_color: raylib.Color, font_hot_color: raylib.Color) Self {
+        const label_size = raylib.measureTextEx(font, label, font_size, font_spacing);
+
+        return .{ .label = label, .label_size = label_size, .font = font, .font_size = font_size, .font_spacing = font_spacing, .font_idle_color = font_idle_color, .font_hot_color = font_hot_color };
     }
 
-    pub fn sizeVector(self: Self) raylib.Vector2 {
-        return raylib.measureTextEx(self.font, self.label, consts.font_size, consts.font_spacing);
+    pub fn render(self: Self, orchestrator: *zui.Orchestrator, id: i32, coordinate: raylib.Vector2) bool {
+        if (orchestrator.is_mouse_in(raylib.Rectangle{ .x = coordinate.x, .y = coordinate.y, .width = self.label_size.x, .height = self.label_size.y })) {
+            orchestrator.set_hot_item_id(id);
+            self.draw(coordinate, orchestrator.origin_left_position, true);
+        } else {
+            self.draw(coordinate, orchestrator.origin_left_position, false);
+        }
+
+        return false;
     }
 
-    pub fn drawFromleft(self: Self) void {
-        raylib.drawTextPro(self.font, self.label, .{ .x = self.margin_left, .y = self.y }, consts.position_origin_left, 0, consts.font_size, consts.font_spacing, consts.color_brand);
-    }
-
-    pub fn drawFromRight(self: Self) void {
-        const text_size = self.sizeVector();
-        const right_edge = @as(f32, @floatFromInt(raylib.getRenderWidth()));
-        const x = right_edge - text_size.x - self.margin_right;
-
-        raylib.drawTextPro(self.font, self.label, .{ .x = x, .y = self.y }, consts.position_origin_left, 0, consts.font_size, consts.font_spacing, consts.color_brand);
+    pub fn draw(self: Self, coordinate: raylib.Vector2, origin_left_position: raylib.Vector2, is_hot: bool) void {
+        if (is_hot) {
+            raylib.drawTextPro(self.font, self.label, coordinate, origin_left_position, 0, self.font_size, self.font_spacing, self.font_hot_color);
+        } else {
+            raylib.drawTextPro(self.font, self.label, coordinate, origin_left_position, 0, self.font_size, self.font_spacing, self.font_idle_color);
+        }
     }
 };
