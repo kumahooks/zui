@@ -12,6 +12,7 @@ pub fn main() !void {
     raylib.setTargetFPS(consts.raylib_target_fps);
 
     raylib.initWindow(consts.window_width, consts.window_height, consts.window_title);
+    defer raylib.closeWindow();
 
     // loads custom font and if it fails fallbacks to default.
     const font = raylib.loadFontFromMemory(".ttf", consts.font_embed, 32, null) catch font: {
@@ -19,17 +20,29 @@ pub fn main() !void {
         break :font default_font;
     };
 
+    const default_style: zui.Style = .{
+        .font = font,
+        .font_size = 32,
+        .font_spacing = 1,
+        .font_idle_color = raylib.Color{ .r = 184, .g = 92, .b = 131, .a = 255 },
+        .font_hovered_color = raylib.Color{ .r = 184, .g = 192, .b = 131, .a = 255 },
+        .font_active_color = raylib.Color{ .r = 230, .g = 130, .b = 170, .a = 255 },
+    };
     var orchestrator: zui.Orchestrator = zui.Orchestrator.init(raylib.Vector2{ .x = 0, .y = 0 });
+
+    // TODO: temp debug.
+    var clicks: u32 = 0;
 
     while (!raylib.windowShouldClose()) {
         raylib.beginDrawing();
-        raylib.clearBackground(consts.color_opaque_bg);
+        raylib.clearBackground(raylib.Color{ .r = 0, .g = 0, .b = 0, .a = 212 });
 
         orchestrator.updateStart();
 
-        var buffer: [64]u8 = undefined;
+        // TODO: temp debug.
+        var coordinates_buffer: [64]u8 = undefined;
         const coordinate: [:0]u8 = try std.mem.printSentinel(
-            &buffer,
+            &coordinates_buffer,
             "{d:.0}, {d:.0}",
             .{
                 orchestrator.mouse_position.x,
@@ -39,28 +52,29 @@ pub fn main() !void {
         );
         _ = drawTextFromLeft(coordinate, consts.header_horizontal_padding, 0, font);
 
-        const button = zui.button.TextButton.init(
-            "owo",
-            font,
-            consts.font_size,
-            consts.font_spacing,
-            consts.color_brand,
-            consts.color_brand_hovered,
-        );
-        if (button.render(&orchestrator, raylib.Vector2{ .x = 250, .y = 250 })) {
-            _ = drawTextFromLeft("hold", 250, 300, font);
+        // TODO: temp debug.
+        const button_result = zui.button.render(&orchestrator, "owo", default_style, raylib.Vector2{ .x = 250, .y = 250 });
+        if (button_result.clicked) {
+            clicks += 1;
         }
+        if (button_result.held) {
+            _ = drawTextFromLeft("held", 250, 300, font);
+        }
+
+        // TODO: temp debug.
+        var clicks_counter_buffer: [32]u8 = undefined;
+        const counter: [:0]u8 = try std.mem.printSentinel(&clicks_counter_buffer, "clicks: {d}", .{clicks}, 0);
+        _ = drawTextFromLeft(counter, 250, 330, font);
 
         orchestrator.updateFinish();
 
         raylib.endDrawing();
     }
-
-    raylib.closeWindow();
 }
 
 // drawTextFromLeft draws text from left origin position + margin_left.
 // returns the drawn text size.
+// TODO: temporary, this will be its own text control later.
 fn drawTextFromLeft(text: [:0]const u8, margin_left: f32, y: f32, font: raylib.Font) f32 {
     raylib.drawTextPro(
         font,
@@ -70,7 +84,7 @@ fn drawTextFromLeft(text: [:0]const u8, margin_left: f32, y: f32, font: raylib.F
         0,
         consts.font_size,
         consts.font_spacing,
-        consts.color_brand,
+        raylib.Color{ .r = 184, .g = 92, .b = 131, .a = 255 },
     );
 
     return raylib.measureTextEx(font, text, consts.font_size, consts.font_spacing).x;
@@ -78,6 +92,7 @@ fn drawTextFromLeft(text: [:0]const u8, margin_left: f32, y: f32, font: raylib.F
 
 // drawTextFromRight draws text from right origin position + margin_right + text size.
 // returns the drawn text size.
+// TODO: temporary, this will be its own text control later.
 fn drawTextFromRight(text: [:0]const u8, margin_right: f32, y: f32, font: raylib.Font) f32 {
     const text_size_vector = raylib.measureTextEx(font, text, consts.font_size, consts.font_spacing);
     const right_edge = @as(f32, @floatFromInt(raylib.getRenderWidth()));
@@ -91,7 +106,7 @@ fn drawTextFromRight(text: [:0]const u8, margin_right: f32, y: f32, font: raylib
         0,
         consts.font_size,
         consts.font_spacing,
-        consts.color_brand,
+        raylib.Color{ .r = 184, .g = 92, .b = 131, .a = 255 },
     );
 
     return text_size_vector.x;

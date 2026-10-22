@@ -2,88 +2,49 @@ const raylib = @import("raylib");
 
 const zui = @import("lib.zig");
 
-pub const TextButton = struct {
-    const Self = @This();
+pub fn render(orchestrator: *zui.Orchestrator, label: [:0]const u8, style: zui.Style, coordinate: raylib.Vector2) zui.ControlActionResult {
+    const id: zui.Id = orchestrator.getId(label);
 
-    label: [:0]const u8,
+    // gathers the area of the button.
+    const label_size: raylib.Vector2 = raylib.measureTextEx(style.font, label, style.font_size, style.font_spacing);
+    const rectangle: raylib.Rectangle = .{
+        .x = coordinate.x,
+        .y = coordinate.y,
+        .width = label_size.x,
+        .height = label_size.y,
+    };
 
-    font: raylib.Font,
-    font_size: f32,
-    font_spacing: f32,
-    font_idle_color: raylib.Color,
-    font_hovered_color: raylib.Color,
+    // updates the hover and active status based on mouse position and button area.
+    const controlState: zui.ControlState = orchestrator.updateControl(rectangle, id);
 
-    // TODO: styling a button is out of scope for now... but should it really be initiated like this?
-    // need to think better about this and how other widgets will be expressed later.
-    pub fn init(label: [:0]const u8, font: raylib.Font, font_size: f32, font_spacing: f32, font_idle_color: raylib.Color, font_hovered_color: raylib.Color) Self {
-        return .{
-            .label = label,
-            .font = font,
-            .font_size = font_size,
-            .font_spacing = font_spacing,
-            .font_idle_color = font_idle_color,
-            .font_hovered_color = font_hovered_color,
-        };
+    // handles the mouse action.
+    var result: zui.ControlActionResult = .{};
+    if (controlState.active) {
+        result.clicked = controlState.hovered and orchestrator.mouse_release;
+        result.held = orchestrator.mouse_hold;
     }
 
-    // TODO: differ from hold and click eventually.
-    pub fn render(self: Self, orchestrator: *zui.Orchestrator, coordinate: raylib.Vector2) bool {
-        const label_size = raylib.measureTextEx(self.font, self.label, self.font_size, self.font_spacing);
-        const id = orchestrator.getId(self.label);
-
-        // is the button hovered?
-        const is_mouse_in = orchestrator.isMouseIn(raylib.Rectangle{
-            .x = coordinate.x,
-            .y = coordinate.y,
-            .width = label_size.x,
-            .height = label_size.y,
-        });
-        if (is_mouse_in) {
-            orchestrator.setHoveredItemId(id);
-
-            // is the button focused?
-            if (orchestrator.focus_item_id == zui.id_none and orchestrator.mouse_down) {
-                orchestrator.setFocusItemId(id);
-            }
-        }
-
-        if (orchestrator.hover_item_id == id) {
-            self.draw(coordinate, orchestrator.origin_left_position, true);
-
-            // is the mouse down and the button focused?
-            if (orchestrator.mouse_down and orchestrator.focus_item_id == id) {
-                return true;
-            }
-        } else {
-            self.draw(coordinate, orchestrator.origin_left_position, false);
-        }
-
-        return false;
+    // draws the button.
+    var color: raylib.Color = style.font_idle_color;
+    if (controlState.active) {
+        color = style.font_active_color;
+    } else if (controlState.hovered) {
+        color = style.font_hovered_color;
     }
+    draw(label, style, coordinate, orchestrator.origin_left_position, color);
 
-    pub fn draw(self: Self, coordinate: raylib.Vector2, origin_left_position: raylib.Vector2, is_hovered: bool) void {
-        if (is_hovered) {
-            raylib.drawTextPro(
-                self.font,
-                self.label,
-                coordinate,
-                origin_left_position,
-                0,
-                self.font_size,
-                self.font_spacing,
-                self.font_hovered_color,
-            );
-        } else {
-            raylib.drawTextPro(
-                self.font,
-                self.label,
-                coordinate,
-                origin_left_position,
-                0,
-                self.font_size,
-                self.font_spacing,
-                self.font_idle_color,
-            );
-        }
-    }
-};
+    return result;
+}
+
+fn draw(label: [:0]const u8, style: zui.Style, coordinate: raylib.Vector2, origin_left_position: raylib.Vector2, color: raylib.Color) void {
+    raylib.drawTextPro(
+        style.font,
+        label,
+        coordinate,
+        origin_left_position,
+        0,
+        style.font_size,
+        style.font_spacing,
+        color,
+    );
+}
