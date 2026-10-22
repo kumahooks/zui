@@ -2,7 +2,7 @@ const raylib = @import("raylib");
 
 const zui = @import("lib.zig");
 
-pub fn render(orchestrator: *zui.Orchestrator, label: [:0]const u8, style: zui.Style, coordinate: raylib.Vector2) zui.ControlActionResult {
+pub fn render(orchestrator: *zui.Orchestrator, label: [:0]const u8, style: zui.Style, coordinate: raylib.Vector2) zui.WidgetResult {
     const id: zui.Id = orchestrator.getId(label);
 
     // gathers the area of the button.
@@ -15,20 +15,20 @@ pub fn render(orchestrator: *zui.Orchestrator, label: [:0]const u8, style: zui.S
     };
 
     // updates the hover and active status based on mouse position and button area.
-    const control_state: zui.ControlState = orchestrator.updateControl(rectangle, id);
+    const item_state: zui.ItemState = orchestrator.updateItem(rectangle, id);
 
     // handles the mouse action.
-    var result: zui.ControlActionResult = .{};
-    if (control_state.active) {
-        result.clicked = control_state.hovered and orchestrator.mouse_release;
+    var result: zui.WidgetResult = .{};
+    if (item_state.active) {
+        result.clicked = item_state.hovered and orchestrator.mouse_release;
         result.held = orchestrator.mouse_hold;
     }
 
     // draws the button.
     var color: raylib.Color = style.font_idle_color;
-    if (control_state.active) {
+    if (item_state.active) {
         color = style.font_active_color;
-    } else if (control_state.hovered) {
+    } else if (item_state.hovered) {
         color = style.font_hovered_color;
     }
     draw(label, style, coordinate, orchestrator.origin_left_position, color);

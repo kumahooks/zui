@@ -75,7 +75,7 @@ pub fn main() !void {
 
 // drawTextFromLeft draws text from left origin position + margin_left.
 // returns the drawn text size.
-// TODO: temporary, this will be its own text control later.
+// TODO: temporary, this will be its own text widget later.
 fn drawTextFromLeft(text: [:0]const u8, margin_left: f32, y: f32, font: raylib.Font) f32 {
     raylib.drawTextPro(
         font,
@@ -93,7 +93,7 @@ fn drawTextFromLeft(text: [:0]const u8, margin_left: f32, y: f32, font: raylib.F
 
 // drawTextFromRight draws text from right origin position + margin_right + text size.
 // returns the drawn text size.
-// TODO: temporary, this will be its own text control later.
+// TODO: temporary, this will be its own text widget later.
 fn drawTextFromRight(text: [:0]const u8, margin_right: f32, y: f32, font: raylib.Font) f32 {
     const text_size_vector = raylib.measureTextEx(font, text, consts.font_size, consts.font_spacing);
     const right_edge = @as(f32, @floatFromInt(raylib.getRenderWidth()));

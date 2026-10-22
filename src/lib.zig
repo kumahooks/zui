@@ -4,14 +4,14 @@ const raylib = @import("raylib");
 
 pub const button = @import("button.zig");
 
-/// A control identity, derived from given bytes.
+/// An item identity, derived from given bytes.
 pub const Id = u64;
-/// The value hover and active hold when no control owns them.
+/// The value hover and active hold when no item owns them.
 pub const id_none: Id = 0;
 // Seed for root-level items.
 const id_root_seed: Id = std.math.maxInt(i64);
 
-/// Defines styles for each control.
+/// Defines styles for each widget.
 pub const Style = struct {
     font: raylib.Font,
     font_size: f32,
@@ -21,31 +21,31 @@ pub const Style = struct {
     font_active_color: raylib.Color,
 };
 
-/// Defines types of actions on controls.
-pub const ControlActionResult = struct {
+/// Defines types of actions on widgets.
+pub const WidgetResult = struct {
     /// A click action happened (raylib.isMouseButtonReleased).
     clicked: bool = false,
     /// A hold action happened (raylib.isMouseButtonDown).
     held: bool = false,
 };
 
-/// Defines types of a control state based on the mouse position.
-pub const ControlState = struct {
-    /// The control owns the mouse pointer hovering over it.
+/// The hover and active ownership of one item.
+pub const ItemState = struct {
+    /// The item owns the mouse pointer hovering over it.
     hovered: bool,
-    /// The control owns the mouse press until it releases.
+    /// The item owns the mouse press until it releases.
     active: bool,
 };
 
 pub const Orchestrator = struct {
     const Self = @This();
 
-    /// Controls scopes.
+    /// Identity scopes.
     id_stack: [32]Id = undefined,
     id_stack_length: usize = 0,
-    /// Item owning hover, or `id_none`. Written only by `updateControl`.
+    /// Item owning hover, or `id_none`. Written only by `updateItem`.
     hover_item_id: Id = id_none,
-    /// Item owning the current press, or `id_none`. Written by `updateControl` and cleared by `updateFinish`.
+    /// Item owning the current press, or `id_none`. Written by `updateItem` and cleared by `updateFinish`.
     active_item_id: Id = id_none,
 
     mouse_position: raylib.Vector2 = .{ .x = 0, .y = 0 },
@@ -86,13 +86,13 @@ pub const Orchestrator = struct {
         }
     }
 
-    /// Updates hover and active ownership for the control occupying `rectangle`, and reports what the control now owns.
+    /// Updates hover and active ownership for the item occupying `rectangle`, and reports what the item now owns.
     ///
-    /// Must run after `updateStart` and before `updateFinish`, within a control renderer.
-    pub fn updateControl(self: *Self, rectangle: raylib.Rectangle, id: Id) ControlState {
+    /// Must run after `updateStart` and before `updateFinish`, within a widget renderer.
+    pub fn updateItem(self: *Self, rectangle: raylib.Rectangle, id: Id) ItemState {
         const is_mouse_in: bool = self.isMouseIn(rectangle);
 
-        // hover is owned: while an action is held it stays with the control while the pointer is above it.
+        // hover is owned: while an action is held it stays with the item while the pointer is above it.
         if (is_mouse_in and !self.mouse_hold) {
             self.hover_item_id = id;
         } else if (!is_mouse_in and self.hover_item_id == id) {
@@ -100,7 +100,7 @@ pub const Orchestrator = struct {
             self.hover_item_id = id_none;
         }
 
-        // the area where the press happened claims the active item for the control under the pointer.
+        // the area where the press happened claims the item under the pointer as active.
         if (self.mouse_press and is_mouse_in) {
             self.active_item_id = id;
         }
@@ -128,7 +128,7 @@ pub const Orchestrator = struct {
 
     /// Pushes a child scope for `bytes`.
     ///
-    /// It's necessary to use this to disambuigate controls with identical labels within the same scope.
+    /// It's necessary to use this to disambiguate widgets with identical labels within the same scope.
     pub fn pushId(self: *Self, bytes: []const u8) void {
         if (self.id_stack_length == self.id_stack.len) {
             @panic("[zui:Orchestrator.pushId] id_stack depth exceeded");
