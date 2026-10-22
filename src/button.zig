@@ -15,20 +15,20 @@ pub fn render(orchestrator: *zui.Orchestrator, label: [:0]const u8, style: zui.S
     };
 
     // updates the hover and active status based on mouse position and button area.
-    const controlState: zui.ControlState = orchestrator.updateControl(rectangle, id);
+    const control_state: zui.ControlState = orchestrator.updateControl(rectangle, id);
 
     // handles the mouse action.
     var result: zui.ControlActionResult = .{};
-    if (controlState.active) {
-        result.clicked = controlState.hovered and orchestrator.mouse_release;
+    if (control_state.active) {
+        result.clicked = control_state.hovered and orchestrator.mouse_release;
         result.held = orchestrator.mouse_hold;
     }
 
     // draws the button.
     var color: raylib.Color = style.font_idle_color;
-    if (controlState.active) {
+    if (control_state.active) {
         color = style.font_active_color;
-    } else if (controlState.hovered) {
+    } else if (control_state.hovered) {
         color = style.font_hovered_color;
     }
     draw(label, style, coordinate, orchestrator.origin_left_position, color);

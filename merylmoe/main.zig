@@ -19,6 +19,7 @@ pub fn main() !void {
         const default_font = raylib.getFontDefault() catch @panic("default font unavailable");
         break :font default_font;
     };
+    defer raylib.unloadFont(font);
 
     const default_style: zui.Style = .{
         .font = font,
