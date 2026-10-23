@@ -158,3 +158,70 @@ pub const Orchestrator = struct {
         return id_root_seed;
     }
 };
+
+test "zui: id_stack scopes correctly" {
+    var orchestrator: Orchestrator = Orchestrator.init(raylib.Vector2{ .x = 0, .y = 0 });
+    try std.testing.expectEqual(0, orchestrator.id_stack_length);
+
+    const owo_id: Id = orchestrator.getId("owo");
+
+    orchestrator.pushId("owo");
+    try std.testing.expectEqual(1, orchestrator.id_stack_length);
+    try std.testing.expectEqual(owo_id, orchestrator.getCurrentScopeId());
+    try std.testing.expect(owo_id != orchestrator.getId("owo"));
+
+    const x_1: Id = orchestrator.getId("x");
+    orchestrator.pushId("uwu");
+    const x_2: Id = orchestrator.getId("x");
+    orchestrator.pushId("ovo");
+    try std.testing.expect(x_2 != orchestrator.getId("x"));
+    orchestrator.popId();
+    try std.testing.expectEqual(x_2, orchestrator.getId("x"));
+    orchestrator.popId();
+    try std.testing.expectEqual(x_1, orchestrator.getId("x"));
+
+    orchestrator.popId();
+    try std.testing.expectEqual(0, orchestrator.id_stack_length);
+    try std.testing.expectEqual(owo_id, orchestrator.getId("owo"));
+}
+
+test "zui: isMouseIn" {
+    var orchestrator: Orchestrator = Orchestrator.init(raylib.Vector2{ .x = 0, .y = 0 });
+    const rectangle: raylib.Rectangle = .{ .x = 10, .y = 10, .width = 10, .height = 10 };
+
+    const cases = [_]struct {
+        name: []const u8,
+        position: raylib.Vector2,
+        expect: bool,
+    }{
+        .{ .name = "inside", .position = .{ .x = 14, .y = 14 }, .expect = true },
+
+        .{ .name = "top-left is inclusive", .position = .{ .x = 10, .y = 10 }, .expect = true },
+        .{ .name = "outside of top-left from x", .position = .{ .x = 9, .y = 10 }, .expect = false },
+        .{ .name = "outside of top-left from y", .position = .{ .x = 10, .y = 9 }, .expect = false },
+
+        .{ .name = "bottom-left includes x, excludes y", .position = .{ .x = 10, .y = 19 }, .expect = true },
+        .{ .name = "outside of bottom-left from y", .position = .{ .x = 10, .y = 20 }, .expect = false },
+
+        .{ .name = "top-right excludes x, includes y", .position = .{ .x = 19, .y = 10 }, .expect = true },
+        .{ .name = "outside of top-right from x", .position = .{ .x = 20, .y = 10 }, .expect = false },
+
+        .{ .name = "bottom-right excludes x and y", .position = .{ .x = 19, .y = 19 }, .expect = true },
+        .{ .name = "outside of bottom-right from x and y", .position = .{ .x = 20, .y = 20 }, .expect = false },
+    };
+
+    for (cases) |case| {
+        orchestrator.mouse_position = case.position;
+
+        std.testing.expectEqual(case.expect, orchestrator.isMouseIn(rectangle)) catch |err| {
+            std.testing.failPrint("case: {s} at ({d}, {d})\n", .{ case.name, case.position.x, case.position.y });
+            return err;
+        };
+    }
+
+    orchestrator.mouse_position = .{ .x = 10, .y = 15 };
+    try std.testing.expectEqual(false, orchestrator.isMouseIn(.{ .x = 10, .y = 10, .width = 0, .height = 10 }));
+
+    orchestrator.mouse_position = .{ .x = 0, .y = 15 };
+    try std.testing.expectEqual(false, orchestrator.isMouseIn(.{ .x = 10, .y = 10, .width = -10, .height = 10 }));
+}
