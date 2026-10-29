@@ -106,17 +106,17 @@ pub const Orchestrator = struct {
 
         const is_mouse_pointer_inside: bool = self.is_mouse_in(rectangle);
 
-        // Hover is owned: while an action is held it stays with the item while the pointer is above it.
+        // hover is owned: while an action is held it stays with the item while the pointer is above it.
         if (is_mouse_pointer_inside and !self.mouse_hold) {
             self.hover_item_id = id;
         } else {
             if (!is_mouse_pointer_inside and self.hover_item_id == id) {
-                // Only the owner of the hover clears it.
+                // only the owner of the hover clears it.
                 self.hover_item_id = id_none;
             }
         }
 
-        // The area where the press happened claims the item under the pointer as active.
+        // the area where the press happened claims the item under the pointer as active.
         if (self.mouse_press and is_mouse_pointer_inside) {
             self.active_item_id = id;
         }
