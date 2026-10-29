@@ -8,8 +8,15 @@ pub const button = @import("button.zig");
 pub const Id = u64;
 /// The value hover and active hold when no item owns them.
 pub const id_none: Id = 0;
-// Seed for root-level items.
-const id_root_seed: Id = std.math.maxInt(i64);
+/// Seed for root-level items.
+const id_root_seed: Id = std.math.maxInt(Id);
+/// Fixed length of the widget identity stack.
+const id_stack_capacity: u8 = 32;
+
+comptime {
+    std.debug.assert(id_root_seed != id_none);
+    std.debug.assert(id_stack_capacity > 0);
+}
 
 /// Defines styles for each widget.
 pub const Style = struct {
@@ -40,12 +47,12 @@ pub const ItemState = struct {
 pub const Orchestrator = struct {
     const Self = @This();
 
-    /// Identity scopes.
-    id_stack: [32]Id = undefined,
-    id_stack_length: usize = 0,
-    /// Item owning hover, or `id_none`. Written only by `updateItem`.
+    /// Widget identity scopes.
+    id_stack: [id_stack_capacity]Id = @splat(id_none),
+    id_stack_length: u8 = 0,
+    /// Item owning hover, or `id_none`. Written only by `update_item`.
     hover_item_id: Id = id_none,
-    /// Item owning the current press, or `id_none`. Written by `updateItem` and cleared by `updateFinish`.
+    /// Item owning the current press, or `id_none`. Written by `update_item` and cleared by `update_finish`.
     active_item_id: Id = id_none,
 
     mouse_position: raylib.Vector2 = .{ .x = 0, .y = 0 },
@@ -56,6 +63,9 @@ pub const Orchestrator = struct {
     origin_left_position: raylib.Vector2 = .{ .x = 0, .y = 0 },
 
     pub fn init(origin_left_position: raylib.Vector2) Self {
+        std.debug.assert(std.math.isFinite(origin_left_position.x));
+        std.debug.assert(std.math.isFinite(origin_left_position.y));
+
         return .{
             .origin_left_position = origin_left_position,
         };
@@ -63,11 +73,9 @@ pub const Orchestrator = struct {
 
     /// Begins a frame, gathering input.
     ///
-    /// Every `pushId` ran between this call and `updateFinish` must have an equivalent `popId`.
-    pub fn updateStart(self: *Self) void {
-        if (self.id_stack_length != 0) {
-            @panic("[zui:Orchestrator.updateStart] id_stack_length is not 0");
-        }
+    /// Every `push_id` ran between this call and `update_finish` must have an equivalent `pop_id`.
+    pub fn update_start(self: *Self) void {
+        std.debug.assert(self.id_stack_length == 0);
 
         self.mouse_position = raylib.getMousePosition();
         self.mouse_press = raylib.isMouseButtonPressed(raylib.MouseButton.left);
@@ -76,32 +84,40 @@ pub const Orchestrator = struct {
     }
 
     /// Ends a frame, releasing the active item once the mouse is up.
-    pub fn updateFinish(self: *Self) void {
-        if (self.id_stack_length != 0) {
-            @panic("[zui:Orchestrator.updateFinish] id_stack not cleared");
-        }
+    pub fn update_finish(self: *Self) void {
+        std.debug.assert(self.id_stack_length == 0);
 
-        if (!self.mouse_hold) {
-            self.active_item_id = id_none;
-        }
+        if (self.mouse_hold) return;
+
+        self.active_item_id = id_none;
     }
 
     /// Updates hover and active ownership for the item occupying `rectangle`, and reports what the item now owns.
     ///
-    /// Must run after `updateStart` and before `updateFinish`, within a widget renderer.
-    pub fn updateItem(self: *Self, rectangle: raylib.Rectangle, id: Id) ItemState {
-        const is_mouse_in: bool = self.isMouseIn(rectangle);
+    /// Must run after `update_start` and before `update_finish`, within a widget renderer.
+    pub fn update_item(self: *Self, rectangle: raylib.Rectangle, id: Id) ItemState {
+        std.debug.assert(id != id_none);
+        std.debug.assert(rectangle.x >= 0);
+        std.debug.assert(rectangle.y >= 0);
+        std.debug.assert(rectangle.width >= 0);
+        std.debug.assert(rectangle.height >= 0);
+        std.debug.assert(std.math.isFinite(rectangle.x));
+        std.debug.assert(std.math.isFinite(rectangle.y));
 
-        // hover is owned: while an action is held it stays with the item while the pointer is above it.
-        if (is_mouse_in and !self.mouse_hold) {
+        const is_mouse_pointer_inside: bool = self.is_mouse_in(rectangle);
+
+        // Hover is owned: while an action is held it stays with the item while the pointer is above it.
+        if (is_mouse_pointer_inside and !self.mouse_hold) {
             self.hover_item_id = id;
-        } else if (!is_mouse_in and self.hover_item_id == id) {
-            // only the owner of the hover clears it.
-            self.hover_item_id = id_none;
+        } else {
+            if (!is_mouse_pointer_inside and self.hover_item_id == id) {
+                // Only the owner of the hover clears it.
+                self.hover_item_id = id_none;
+            }
         }
 
-        // the area where the press happened claims the item under the pointer as active.
-        if (self.mouse_press and is_mouse_in) {
+        // The area where the press happened claims the item under the pointer as active.
+        if (self.mouse_press and is_mouse_pointer_inside) {
             self.active_item_id = id;
         }
 
@@ -111,7 +127,19 @@ pub const Orchestrator = struct {
         };
     }
 
-    pub fn isMouseIn(self: *const Self, rectangle: raylib.Rectangle) bool {
+    /// Returns whether `mouse_position` is within `rectangle`.
+    ///
+    /// `rectangle` must be finite with a non-negative width and height.
+    pub fn is_mouse_in(self: *const Self, rectangle: raylib.Rectangle) bool {
+        std.debug.assert(std.math.isFinite(self.mouse_position.x));
+        std.debug.assert(std.math.isFinite(self.mouse_position.y));
+        std.debug.assert(rectangle.x >= 0);
+        std.debug.assert(rectangle.y >= 0);
+        std.debug.assert(rectangle.width >= 0);
+        std.debug.assert(rectangle.height >= 0);
+        std.debug.assert(std.math.isFinite(rectangle.x));
+        std.debug.assert(std.math.isFinite(rectangle.y));
+
         if (self.mouse_position.x >= rectangle.x and self.mouse_position.x < rectangle.x + rectangle.width) {
             if (self.mouse_position.y >= rectangle.y and self.mouse_position.y < rectangle.y + rectangle.height) {
                 return true;
@@ -122,70 +150,79 @@ pub const Orchestrator = struct {
     }
 
     /// Returns the identity for `bytes` in the current scope. Identical bytes (in the same scope) always result the same ID.
-    pub fn getId(self: *const Self, bytes: []const u8) Id {
-        return std.hash.Wyhash.hash(self.getCurrentScopeId(), bytes);
+    pub fn get_id(self: *const Self, bytes: []const u8) Id {
+        std.debug.assert(self.id_stack_length <= self.id_stack.len);
+
+        const id: Id = std.hash.Wyhash.hash(self.get_current_scope_id(), bytes);
+        if (id == id_none) return id_none + 1;
+
+        return id;
     }
 
     /// Pushes a child scope for `bytes`.
     ///
     /// It's necessary to use this to disambiguate widgets with identical labels within the same scope.
-    pub fn pushId(self: *Self, bytes: []const u8) void {
-        if (self.id_stack_length == self.id_stack.len) {
-            @panic("[zui:Orchestrator.pushId] id_stack depth exceeded");
-        }
+    pub fn push_id(self: *Self, bytes: []const u8) void {
+        std.debug.assert(self.id_stack_length < self.id_stack.len);
 
-        const id: Id = self.getId(bytes);
+        const id: Id = self.get_id(bytes);
+        std.debug.assert(id != id_none);
+
         self.id_stack[self.id_stack_length] = id;
         self.id_stack_length += 1;
     }
 
-    /// Pops the innermost scope, while panicking if none is open.
+    /// Pops the innermost scope, while asserting that one is open.
     ///
-    /// Every call must be matched by a previously called `pushId`, and before `updateFinish`.
-    pub fn popId(self: *Self) void {
-        if (self.id_stack_length == 0) {
-            @panic("[zui:Orchestrator.popId] id_stack is empty");
-        }
+    /// Every call must be matched by a previously called `push_id`, and before `update_finish`.
+    pub fn pop_id(self: *Self) void {
+        std.debug.assert(self.id_stack_length > 0);
 
+        self.id_stack[self.id_stack_length - 1] = id_none;
         self.id_stack_length -= 1;
     }
 
-    fn getCurrentScopeId(self: *const Self) Id {
+    fn get_current_scope_id(self: *const Self) Id {
+        std.debug.assert(self.id_stack_length <= self.id_stack.len);
+
         if (self.id_stack_length > 0) {
-            return self.id_stack[self.id_stack_length - 1];
+            const id: Id = self.id_stack[self.id_stack_length - 1];
+            std.debug.assert(id != id_none);
+
+            return id;
         }
 
         return id_root_seed;
     }
 };
 
-test "zui: id_stack scopes correctly" {
+test "Orchestrator.id_stack scopes correctly" {
     var orchestrator: Orchestrator = Orchestrator.init(raylib.Vector2{ .x = 0, .y = 0 });
     try std.testing.expectEqual(0, orchestrator.id_stack_length);
 
-    const owo_id: Id = orchestrator.getId("owo");
+    const owo_id: Id = orchestrator.get_id("owo");
 
-    orchestrator.pushId("owo");
+    orchestrator.push_id("owo");
     try std.testing.expectEqual(1, orchestrator.id_stack_length);
-    try std.testing.expectEqual(owo_id, orchestrator.getCurrentScopeId());
-    try std.testing.expect(owo_id != orchestrator.getId("owo"));
+    try std.testing.expectEqual(owo_id, orchestrator.get_current_scope_id());
+    try std.testing.expect(owo_id != orchestrator.get_id("owo"));
 
-    const x_1: Id = orchestrator.getId("x");
-    orchestrator.pushId("uwu");
-    const x_2: Id = orchestrator.getId("x");
-    orchestrator.pushId("ovo");
-    try std.testing.expect(x_2 != orchestrator.getId("x"));
-    orchestrator.popId();
-    try std.testing.expectEqual(x_2, orchestrator.getId("x"));
-    orchestrator.popId();
-    try std.testing.expectEqual(x_1, orchestrator.getId("x"));
+    const x_1: Id = orchestrator.get_id("x");
+    orchestrator.push_id("uwu");
+    const x_2: Id = orchestrator.get_id("x");
+    orchestrator.push_id("ovo");
+    try std.testing.expect(x_2 != orchestrator.get_id("x"));
+    orchestrator.pop_id();
+    try std.testing.expectEqual(x_2, orchestrator.get_id("x"));
+    orchestrator.pop_id();
+    try std.testing.expectEqual(x_1, orchestrator.get_id("x"));
 
-    orchestrator.popId();
+    orchestrator.pop_id();
     try std.testing.expectEqual(0, orchestrator.id_stack_length);
-    try std.testing.expectEqual(owo_id, orchestrator.getId("owo"));
+    try std.testing.expectEqual(owo_id, orchestrator.get_id("owo"));
 }
 
-test "zui: isMouseIn" {
+test "Orchestrator.is_mouse_in" {
     var orchestrator: Orchestrator = Orchestrator.init(raylib.Vector2{ .x = 0, .y = 0 });
     const rectangle: raylib.Rectangle = .{ .x = 10, .y = 10, .width = 10, .height = 10 };
 
@@ -213,15 +250,14 @@ test "zui: isMouseIn" {
     for (cases) |case| {
         orchestrator.mouse_position = case.position;
 
-        std.testing.expectEqual(case.expect, orchestrator.isMouseIn(rectangle)) catch |err| {
+        std.testing.expectEqual(case.expect, orchestrator.is_mouse_in(rectangle)) catch |err| {
             std.testing.failPrint("case: {s} at ({d}, {d})\n", .{ case.name, case.position.x, case.position.y });
             return err;
         };
     }
 
     orchestrator.mouse_position = .{ .x = 10, .y = 15 };
-    try std.testing.expectEqual(false, orchestrator.isMouseIn(.{ .x = 10, .y = 10, .width = 0, .height = 10 }));
-
-    orchestrator.mouse_position = .{ .x = 0, .y = 15 };
-    try std.testing.expectEqual(false, orchestrator.isMouseIn(.{ .x = 10, .y = 10, .width = -10, .height = 10 }));
+    try std.testing.expectEqual(false, orchestrator.is_mouse_in(.{ .x = 10, .y = 10, .width = 0, .height = 10 }));
 }
+
+// TODO: finish tests

@@ -5,110 +5,94 @@ const std = @import("std");
 const raylib = @import("raylib");
 const zui = @import("zui");
 
-const consts = @import("consts.zig");
+const constants = @import("constants.zig");
+
+const background_color: raylib.Color = .{ .r = 0, .g = 0, .b = 0, .a = 212 };
+const idle_color: raylib.Color = .{ .r = 184, .g = 92, .b = 131, .a = 255 };
+const hovered_color: raylib.Color = .{ .r = 184, .g = 192, .b = 131, .a = 255 };
+const active_color: raylib.Color = .{ .r = 230, .g = 130, .b = 170, .a = 255 };
 
 pub fn main() !void {
-    raylib.setConfigFlags(consts.raylib_config_flags);
-    raylib.setTargetFPS(consts.raylib_target_fps);
+    raylib.setConfigFlags(constants.raylib_config_flags);
+    raylib.setTargetFPS(constants.raylib_target_fps);
 
-    raylib.initWindow(consts.window_width, consts.window_height, consts.window_title);
+    raylib.initWindow(constants.window_width, constants.window_height, constants.window_title);
     defer raylib.closeWindow();
 
-    // loads custom font and if it fails fallbacks to default.
-    const font = raylib.loadFontFromMemory(".ttf", consts.font_embed, 32, null) catch font: {
-        const default_font = raylib.getFontDefault() catch @panic("default font unavailable");
-        break :font default_font;
+    // Loads the embedded font and, if it fals, fallsback to raylib's default font.
+    const font = raylib.loadFontFromMemory(".ttf", constants.font_embed, constants.font_size, null) catch |err| font: {
+        std.log.warn("[merylmoe:main] embedded font load failed: {s}, falling back to the default font", .{@errorName(err)});
+        break :font try raylib.getFontDefault();
     };
     defer raylib.unloadFont(font);
+    std.debug.assert(font.texture.id != 0);
 
     const default_style: zui.Style = .{
         .font = font,
-        .font_size = 32,
-        .font_spacing = 1,
-        .font_idle_color = raylib.Color{ .r = 184, .g = 92, .b = 131, .a = 255 },
-        .font_hovered_color = raylib.Color{ .r = 184, .g = 192, .b = 131, .a = 255 },
-        .font_active_color = raylib.Color{ .r = 230, .g = 130, .b = 170, .a = 255 },
+        .font_size = constants.font_size,
+        .font_spacing = constants.font_spacing,
+        .font_idle_color = idle_color,
+        .font_hovered_color = hovered_color,
+        .font_active_color = active_color,
     };
-    var orchestrator: zui.Orchestrator = zui.Orchestrator.init(raylib.Vector2{ .x = 0, .y = 0 });
+    var orchestrator: zui.Orchestrator = zui.Orchestrator.init(.{ .x = 0, .y = 0 });
 
-    // TODO: temp debug.
-    var clicks: u32 = 0;
+    // TODO: remove temp debug.
+    var clicks: u64 = 0;
 
     while (!raylib.windowShouldClose()) {
         raylib.beginDrawing();
-        raylib.clearBackground(raylib.Color{ .r = 0, .g = 0, .b = 0, .a = 212 });
+        raylib.clearBackground(background_color);
 
-        orchestrator.updateStart();
+        orchestrator.update_start();
 
-        // TODO: temp debug.
-        var coordinates_buffer: [64]u8 = undefined;
+        // TODO: remove temp debug.
+        const coordinate_buffer_capacity: u8 = 64;
+        var coordinates_buffer: [coordinate_buffer_capacity]u8 = @splat(0);
         const coordinate: [:0]u8 = try std.mem.printSentinel(
             &coordinates_buffer,
             "{d:.0}, {d:.0}",
-            .{
-                orchestrator.mouse_position.x,
-                orchestrator.mouse_position.y,
-            },
+            .{ orchestrator.mouse_position.x, orchestrator.mouse_position.y },
             0,
         );
-        _ = drawTextFromLeft(coordinate, consts.header_horizontal_padding, 0, font);
+        draw_text_from_left(coordinate, .{ .x = constants.header_horizontal_padding, .y = constants.header_vertical_padding }, &font);
 
-        // TODO: temp debug.
-        const button_result = zui.button.render(&orchestrator, "owo", default_style, raylib.Vector2{ .x = 250, .y = 250 });
-        if (button_result.clicked) {
-            clicks += 1;
-        }
-        if (button_result.held) {
-            _ = drawTextFromLeft("held", 250, 300, font);
-        }
+        // TODO: remove temp debug.
+        const button_position: raylib.Vector2 = .{ .x = 250, .y = 250 };
+        const debug_held_position: raylib.Vector2 = .{ .x = 250, .y = 300 };
+        const debug_clicks_position: raylib.Vector2 = .{ .x = 250, .y = 330 };
 
-        // TODO: temp debug.
-        var clicks_counter_buffer: [32]u8 = undefined;
+        const button_result = zui.button.render(&orchestrator, "owo", &default_style, button_position);
+        if (button_result.clicked) clicks += 1;
+        if (button_result.held) draw_text_from_left("held", debug_held_position, &font);
+
+        // TODO: remove temp debug.
+        const counter_buffer_capacity: u8 = 32;
+        var clicks_counter_buffer: [counter_buffer_capacity]u8 = @splat(0);
         const counter: [:0]u8 = try std.mem.printSentinel(&clicks_counter_buffer, "clicks: {d}", .{clicks}, 0);
-        _ = drawTextFromLeft(counter, 250, 330, font);
+        draw_text_from_left(counter, debug_clicks_position, &font);
 
-        orchestrator.updateFinish();
+        orchestrator.update_finish();
 
         raylib.endDrawing();
     }
 }
 
-// drawTextFromLeft draws text from left origin position + margin_left.
-// returns the drawn text size.
+// draw_text_from_left draws text from the left origin position at `coordinate`.
 // TODO: temporary, this will be its own text widget later.
-fn drawTextFromLeft(text: [:0]const u8, margin_left: f32, y: f32, font: raylib.Font) f32 {
-    raylib.drawTextPro(
-        font,
-        text,
-        .{ .x = margin_left, .y = y },
-        consts.position_origin_left,
-        0,
-        consts.font_size,
-        consts.font_spacing,
-        raylib.Color{ .r = 184, .g = 92, .b = 131, .a = 255 },
-    );
-
-    return raylib.measureTextEx(font, text, consts.font_size, consts.font_spacing).x;
-}
-
-// drawTextFromRight draws text from right origin position + margin_right + text size.
-// returns the drawn text size.
-// TODO: temporary, this will be its own text widget later.
-fn drawTextFromRight(text: [:0]const u8, margin_right: f32, y: f32, font: raylib.Font) f32 {
-    const text_size_vector = raylib.measureTextEx(font, text, consts.font_size, consts.font_spacing);
-    const right_edge = @as(f32, @floatFromInt(raylib.getRenderWidth()));
-    const x = right_edge - text_size_vector.x - margin_right;
+fn draw_text_from_left(text: [:0]const u8, coordinate: raylib.Vector2, font: *const raylib.Font) void {
+    std.debug.assert(std.math.isFinite(coordinate.x));
+    std.debug.assert(std.math.isFinite(coordinate.y));
+    std.debug.assert(font.texture.id != 0);
 
     raylib.drawTextPro(
-        font,
+        font.*,
         text,
-        .{ .x = x, .y = y },
-        consts.position_origin_left,
+        coordinate,
+        constants.position_origin_left,
         0,
-        consts.font_size,
-        consts.font_spacing,
-        raylib.Color{ .r = 184, .g = 92, .b = 131, .a = 255 },
+        constants.font_size,
+        constants.font_spacing,
+        idle_color,
     );
-
-    return text_size_vector.x;
 }
