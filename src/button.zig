@@ -2,7 +2,7 @@ const std = @import("std");
 
 const raylib = @import("raylib");
 
-const zui = @import("lib.zig");
+const zui = @import("root.zig");
 
 pub fn render(orchestrator: *zui.Orchestrator, label: [:0]const u8, style: *const zui.Style, coordinate: raylib.Vector2) zui.WidgetResult {
     std.debug.assert(style.font.texture.id != 0);

@@ -11,7 +11,7 @@ pub fn build(b: *std.Build) void {
     const raylib = raylib_dep.module("raylib");
 
     const zui = b.addModule("zui", .{
-        .root_source_file = b.path("src/lib.zig"),
+        .root_source_file = b.path("src/root.zig"),
         .target = target,
         .optimize = optimize,
         .imports = &.{
