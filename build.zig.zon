@@ -1,7 +1,7 @@
 .{
     .name = .zui,
-    .version = "0.0.0",
     .fingerprint = 0xc00160db3f7747c4,
+    .version = "0.0.0",
     .minimum_zig_version = "0.17.0",
     .dependencies = .{
         .raylib_zig = .{
