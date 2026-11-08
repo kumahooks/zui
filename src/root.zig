@@ -214,7 +214,9 @@ pub const Orchestrator = struct {
 
 test "Orchestrator.id_stack scopes correctly" {
     var orchestrator: Orchestrator = Orchestrator.init(raylib.Vector2{ .x = 0, .y = 0 });
+
     try std.testing.expectEqual(0, orchestrator.id_stack_length);
+    try std.testing.expectEqual(id_root_seed, orchestrator.get_current_scope_id());
 
     const owo_id: Id = orchestrator.get_id("owo");
 
@@ -236,6 +238,70 @@ test "Orchestrator.id_stack scopes correctly" {
     orchestrator.pop_id();
     try std.testing.expectEqual(0, orchestrator.id_stack_length);
     try std.testing.expectEqual(owo_id, orchestrator.get_id("owo"));
+}
+
+test "Orchestrator.get_id derives different ids foro different bytes" {
+    var orchestrator: Orchestrator = Orchestrator.init(raylib.Vector2{ .x = 0, .y = 0 });
+
+    try std.testing.expect(orchestrator.get_id("alpha") != orchestrator.get_id("beta"));
+    try std.testing.expect(orchestrator.get_id("") != id_none);
+}
+
+test "Orchestrator scopes depend on parent id and label" {
+    var orchestrator: Orchestrator = Orchestrator.init(raylib.Vector2{ .x = 0, .y = 0 });
+
+    // despite sharing the same label, under different parents, the ids are different.
+    orchestrator.push_id("owo");
+    orchestrator.push_id("lain");
+    var first_lain: Id = orchestrator.get_current_scope_id();
+    orchestrator.pop_id();
+    orchestrator.pop_id();
+
+    orchestrator.push_id("uwu");
+    orchestrator.push_id("lain");
+    var second_lain: Id = orchestrator.get_current_scope_id();
+    orchestrator.pop_id();
+    orchestrator.pop_id();
+
+    try std.testing.expect(first_lain != second_lain);
+    try std.testing.expectEqual(0, orchestrator.id_stack_length);
+
+    // now, with the same parent, the ids are the same.
+    orchestrator.push_id("owo");
+    orchestrator.push_id("lain");
+    first_lain = orchestrator.get_current_scope_id();
+    orchestrator.pop_id();
+
+    orchestrator.push_id("lain");
+    second_lain = orchestrator.get_current_scope_id();
+    orchestrator.pop_id();
+    orchestrator.pop_id();
+
+    try std.testing.expectEqual(first_lain, second_lain);
+    try std.testing.expectEqual(0, orchestrator.id_stack_length);
+}
+
+test "Orchestrator.push_id fills the stack then Orchestrator.pop_id clears it" {
+    var orchestrator: Orchestrator = Orchestrator.init(raylib.Vector2{ .x = 0, .y = 0 });
+    const capacity: u8 = @intCast(orchestrator.id_stack.len);
+
+    while (orchestrator.id_stack_length < capacity) {
+        orchestrator.push_id("lain");
+    }
+
+    try std.testing.expectEqual(capacity, orchestrator.id_stack_length);
+    for (orchestrator.id_stack) |slot| {
+        try std.testing.expect(slot != id_none);
+    }
+
+    while (orchestrator.id_stack_length > 0) {
+        orchestrator.pop_id();
+    }
+
+    try std.testing.expectEqual(0, orchestrator.id_stack_length);
+    for (orchestrator.id_stack) |slot| {
+        try std.testing.expectEqual(id_none, slot);
+    }
 }
 
 test "Orchestrator.is_mouse_in" {
