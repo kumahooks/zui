@@ -38,7 +38,21 @@ pub fn build(b: *std.Build) void {
         b.step("run", "runs meryl.moe").dependOn(&run_merylmoe.step);
     }
 
-    const zui_tests = b.addTest(.{ .root_module = zui });
-    const run_zui_tests = b.addRunArtifact(zui_tests);
-    b.step("test", "runs library tests").dependOn(&run_zui_tests.step);
+    const zui_unit_tests = b.addTest(.{ .root_module = zui });
+    const run_zui_unit_tests = b.addRunArtifact(zui_unit_tests);
+
+    const zui_public_unit_tests = b.addTest(.{ .root_module = b.createModule(.{
+        .root_source_file = b.path("src/test/root.zig"),
+        .target = target,
+        .optimize = optimize,
+        .imports = &.{
+            .{ .name = "raylib", .module = raylib },
+            .{ .name = "zui", .module = zui },
+        },
+    }) });
+    const run_zui_public_unit_tests = b.addRunArtifact(zui_public_unit_tests);
+
+    const test_step = b.step("test", "runs library tests");
+    test_step.dependOn(&run_zui_unit_tests.step);
+    test_step.dependOn(&run_zui_public_unit_tests.step);
 }
