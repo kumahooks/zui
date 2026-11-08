@@ -1,0 +1,131 @@
+name: CI
+permissions: {}
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  detect:
+    name: Detect library changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    outputs:
+      library: ${{ steps.diff.outputs.library }}
+
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+
+      - name: Check whether the library changed
+        id: diff
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -eu
+
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "library=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [ -z "${BASE_SHA}" ] || [ "${BASE_SHA}" = "0000000000000000000000000000000000000000" ]; then
+            echo "library=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if ! git cat-file -e "${BASE_SHA}^{commit}" 2>/dev/null; then
+            echo "library=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          git diff --name-only "${BASE_SHA}" "${HEAD_SHA}" -- \
+            src build.zig build.zig.zon zig/download.sh .github/workflows/ci.yml \
+            > library-changes.txt
+
+          if [ -s library-changes.txt ]; then
+            echo "Library changes:"
+            cat library-changes.txt
+            echo "library=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "No library changes."
+            echo "library=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  fmt:
+    name: Format
+    needs: detect
+    if: needs.detect.outputs.library == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Restore Zig archive
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: ./zig/cache
+          key: ${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('./zig/download.sh') }}
+
+      - name: Install Zig
+        run: sh ./zig/download.sh
+
+      - name: Check formatting
+        run: ./zig/zig fmt --check src build.zig
+
+  test:
+    name: Test (${{ matrix.optimize }})
+    needs: detect
+    if: needs.detect.outputs.library == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        optimize: [Debug, ReleaseSafe]
+
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Install raylib build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes \
+            libgl1-mesa-dev \
+            libx11-dev \
+            libxcursor-dev \
+            libxi-dev \
+            libxinerama-dev \
+            libxrandr-dev
+
+      - name: Restore Zig archive
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: ./zig/cache
+          key: ${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('./zig/download.sh') }}
+
+      - name: Install Zig
+        run: sh ./zig/download.sh
+
+      - name: Restore Zig build cache
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: ~/.cache/zig
+          key: ${{ runner.os }}-${{ runner.arch }}-${{ matrix.optimize }}-${{ hashFiles('build.zig.zon', './zig/download.sh') }}
+
+      - name: Run library tests
+        run: ./zig/zig build test -Doptimize=${{ matrix.optimize }}
