@@ -44,6 +44,13 @@ pub const ItemState = struct {
     active: bool,
 };
 
+pub const MouseState = struct {
+    position: raylib.Vector2,
+    press: bool,
+    hold: bool,
+    release: bool,
+};
+
 pub const Orchestrator = struct {
     const Self = @This();
 
@@ -55,10 +62,12 @@ pub const Orchestrator = struct {
     /// Item owning the current press, or `id_none`. Written by `update_item` and cleared by `update_finish`.
     active_item_id: Id = id_none,
 
-    mouse_position: raylib.Vector2 = .{ .x = 0, .y = 0 },
-    mouse_press: bool = false,
-    mouse_hold: bool = false,
-    mouse_release: bool = false,
+    mouse_state: MouseState = .{
+        .position = .{ .x = 0, .y = 0 },
+        .press = false,
+        .hold = false,
+        .release = false,
+    },
 
     origin_left_position: raylib.Vector2 = .{ .x = 0, .y = 0 },
 
@@ -77,17 +86,19 @@ pub const Orchestrator = struct {
     pub fn update_start(self: *Self) void {
         std.debug.assert(self.id_stack_length == 0);
 
-        self.mouse_position = raylib.getMousePosition();
-        self.mouse_press = raylib.isMouseButtonPressed(raylib.MouseButton.left);
-        self.mouse_hold = raylib.isMouseButtonDown(raylib.MouseButton.left);
-        self.mouse_release = raylib.isMouseButtonReleased(raylib.MouseButton.left);
+        self.mouse_state = .{
+            .position = raylib.getMousePosition(),
+            .press = raylib.isMouseButtonPressed(raylib.MouseButton.left),
+            .hold = raylib.isMouseButtonDown(raylib.MouseButton.left),
+            .release = raylib.isMouseButtonReleased(raylib.MouseButton.left),
+        };
     }
 
     /// Ends a frame, releasing the active item once the mouse is up.
     pub fn update_finish(self: *Self) void {
         std.debug.assert(self.id_stack_length == 0);
 
-        if (self.mouse_hold) return;
+        if (self.mouse_state.hold) return;
 
         self.active_item_id = id_none;
     }
@@ -107,7 +118,7 @@ pub const Orchestrator = struct {
         const is_mouse_pointer_inside: bool = self.is_mouse_in(rectangle);
 
         // hover is owned: while an action is held it stays with the item while the pointer is above it.
-        if (is_mouse_pointer_inside and !self.mouse_hold) {
+        if (is_mouse_pointer_inside and !self.mouse_state.hold) {
             self.hover_item_id = id;
         } else {
             if (!is_mouse_pointer_inside and self.hover_item_id == id) {
@@ -117,7 +128,7 @@ pub const Orchestrator = struct {
         }
 
         // the area where the press happened claims the item under the pointer as active.
-        if (self.mouse_press and is_mouse_pointer_inside) {
+        if (self.mouse_state.press and is_mouse_pointer_inside) {
             self.active_item_id = id;
         }
 
@@ -131,8 +142,8 @@ pub const Orchestrator = struct {
     ///
     /// `rectangle` must be finite with a non-negative width and height.
     pub fn is_mouse_in(self: *const Self, rectangle: raylib.Rectangle) bool {
-        std.debug.assert(std.math.isFinite(self.mouse_position.x));
-        std.debug.assert(std.math.isFinite(self.mouse_position.y));
+        std.debug.assert(std.math.isFinite(self.mouse_state.position.x));
+        std.debug.assert(std.math.isFinite(self.mouse_state.position.y));
         std.debug.assert(rectangle.x >= 0);
         std.debug.assert(rectangle.y >= 0);
         std.debug.assert(rectangle.width >= 0);
@@ -140,8 +151,8 @@ pub const Orchestrator = struct {
         std.debug.assert(std.math.isFinite(rectangle.x));
         std.debug.assert(std.math.isFinite(rectangle.y));
 
-        if (self.mouse_position.x >= rectangle.x and self.mouse_position.x < rectangle.x + rectangle.width) {
-            if (self.mouse_position.y >= rectangle.y and self.mouse_position.y < rectangle.y + rectangle.height) {
+        if (self.mouse_state.position.x >= rectangle.x and self.mouse_state.position.x < rectangle.x + rectangle.width) {
+            if (self.mouse_state.position.y >= rectangle.y and self.mouse_state.position.y < rectangle.y + rectangle.height) {
                 return true;
             }
         }
@@ -248,7 +259,7 @@ test "Orchestrator.is_mouse_in" {
     };
 
     for (cases) |case| {
-        orchestrator.mouse_position = case.position;
+        orchestrator.mouse_state.position = case.position;
 
         std.testing.expectEqual(case.expect, orchestrator.is_mouse_in(rectangle)) catch |err| {
             std.testing.failPrint("case: {s} at ({d}, {d})\n", .{ case.name, case.position.x, case.position.y });
@@ -256,7 +267,7 @@ test "Orchestrator.is_mouse_in" {
         };
     }
 
-    orchestrator.mouse_position = .{ .x = 10, .y = 15 };
+    orchestrator.mouse_state.position = .{ .x = 10, .y = 15 };
     try std.testing.expectEqual(false, orchestrator.is_mouse_in(.{ .x = 10, .y = 10, .width = 0, .height = 10 }));
 }
 

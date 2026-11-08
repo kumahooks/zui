@@ -29,9 +29,9 @@ pub fn render(orchestrator: *zui.Orchestrator, label: [:0]const u8, style: *cons
     // handles the mouse action.
     var result: zui.WidgetResult = .{};
     if (item_state.active) {
-        if (item_state.hovered) result.clicked = orchestrator.mouse_release;
+        if (item_state.hovered) result.clicked = orchestrator.mouse_state.release;
 
-        result.held = orchestrator.mouse_hold;
+        result.held = orchestrator.mouse_state.hold;
     }
 
     // draws the button.

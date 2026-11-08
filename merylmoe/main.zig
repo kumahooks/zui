@@ -52,7 +52,7 @@ pub fn main() !void {
         const coordinate: [:0]u8 = try std.mem.printSentinel(
             &coordinates_buffer,
             "{d:.0}, {d:.0}",
-            .{ orchestrator.mouse_position.x, orchestrator.mouse_position.y },
+            .{ orchestrator.mouse_state.position.x, orchestrator.mouse_state.position.y },
             0,
         );
         draw_text_from_left(coordinate, .{ .x = constants.header_horizontal_padding, .y = constants.header_vertical_padding }, &font);
