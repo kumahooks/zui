@@ -301,6 +301,13 @@ test "Orchestrator.update_item hover ownership" {
     try std.testing.expectEqual(true, item_state.hovered);
     try std.testing.expectEqual(id_none, orchestrator.active_item_id);
     try std.testing.expectEqual(id, orchestrator.hover_item_id);
+
+    // leaving the rectangle without an action lets the owner clear its own hover.
+    orchestrator.mouse_state.position = .{ .x = 100, .y = 100 };
+    item_state = orchestrator.update_item(rectangle, id);
+    try std.testing.expectEqual(false, item_state.active);
+    try std.testing.expectEqual(false, item_state.hovered);
+    try std.testing.expectEqual(id_none, orchestrator.hover_item_id);
 }
 
 test "Orchestrator.update_item press and hold lifecycle" {
@@ -523,6 +530,99 @@ test "Orchestrator.update_item release over another item" {
     item_state = orchestrator.update_item(rectangle_first, id_first);
     try std.testing.expectEqual(false, item_state.active);
     try std.testing.expectEqual(true, item_state.hovered);
+}
+
+test "Orchestrator.update_item hover transfers without an action" {
+    var orchestrator: Orchestrator = Orchestrator.init(raylib.Vector2{ .x = 0, .y = 0 });
+
+    const id_first: Id = orchestrator.get_id("owo");
+    const rectangle_first: raylib.Rectangle = .{
+        .x = 15,
+        .y = 15,
+        .width = 10,
+        .height = 10,
+    };
+    const id_second: Id = orchestrator.get_id("uwu");
+    const rectangle_second: raylib.Rectangle = .{
+        .x = 60,
+        .y = 60,
+        .width = 10,
+        .height = 10,
+    };
+
+    // the pointer starts inside `rectangle_second`, which claims the hover.
+    orchestrator.mouse_state.position = .{ .x = 61, .y = 61 };
+    var item_state: ItemState = orchestrator.update_item(rectangle_second, id_second);
+    try std.testing.expectEqual(true, item_state.hovered);
+    try std.testing.expectEqual(id_second, orchestrator.hover_item_id);
+
+    // moving into `rectangle_first` without any action transfers the hover ownership.
+    orchestrator.mouse_state.position = .{ .x = 16, .y = 16 };
+    item_state = orchestrator.update_item(rectangle_first, id_first);
+    try std.testing.expectEqual(true, item_state.hovered);
+    try std.testing.expectEqual(id_first, orchestrator.hover_item_id);
+
+    item_state = orchestrator.update_item(rectangle_second, id_second);
+    try std.testing.expectEqual(false, item_state.hovered);
+    try std.testing.expectEqual(id_first, orchestrator.hover_item_id);
+
+    // changing the position then changes the hover ownership.
+    orchestrator.mouse_state.position = .{ .x = 61, .y = 61 };
+    item_state = orchestrator.update_item(rectangle_second, id_second);
+    try std.testing.expectEqual(true, item_state.hovered);
+
+    orchestrator.mouse_state.position = .{ .x = 16, .y = 16 };
+    item_state = orchestrator.update_item(rectangle_second, id_second);
+    try std.testing.expectEqual(false, item_state.hovered);
+    try std.testing.expectEqual(id_none, orchestrator.hover_item_id);
+
+    item_state = orchestrator.update_item(rectangle_first, id_first);
+    try std.testing.expectEqual(true, item_state.hovered);
+    try std.testing.expectEqual(id_first, orchestrator.hover_item_id);
+}
+
+test "Orchestrator.update_item press outside any area does not claim active" {
+    var orchestrator: Orchestrator = Orchestrator.init(raylib.Vector2{ .x = 0, .y = 0 });
+
+    const id: Id = orchestrator.get_id("owo");
+    const rectangle: raylib.Rectangle = .{
+        .x = 15,
+        .y = 15,
+        .width = 10,
+        .height = 10,
+    };
+
+    // the press starts outside.
+    orchestrator.mouse_state.position = .{ .x = 100, .y = 100 };
+    orchestrator.mouse_state.press = true;
+    orchestrator.mouse_state.hold = true;
+
+    var item_state: ItemState = orchestrator.update_item(rectangle, id);
+    try std.testing.expectEqual(false, item_state.active);
+    try std.testing.expectEqual(false, item_state.hovered);
+    try std.testing.expectEqual(id_none, orchestrator.active_item_id);
+
+    // no claim happens if moving inside while the button is still held from outside.
+    orchestrator.mouse_state.position = .{ .x = 16, .y = 16 };
+    orchestrator.mouse_state.press = false;
+
+    item_state = orchestrator.update_item(rectangle, id);
+    try std.testing.expectEqual(false, item_state.active);
+    try std.testing.expectEqual(false, item_state.hovered);
+    try std.testing.expectEqual(id_none, orchestrator.active_item_id);
+    try std.testing.expectEqual(id_none, orchestrator.hover_item_id);
+
+    // releasing inside restores hover but cannot produce a click, because active was never claimed.
+    orchestrator.mouse_state.hold = false;
+    orchestrator.mouse_state.release = true;
+
+    item_state = orchestrator.update_item(rectangle, id);
+    try std.testing.expectEqual(false, item_state.active);
+    try std.testing.expectEqual(true, item_state.hovered);
+    try std.testing.expectEqual(id, orchestrator.hover_item_id);
+
+    orchestrator.update_finish();
+    try std.testing.expectEqual(id_none, orchestrator.active_item_id);
 }
 
 // TODO: how to test raylib stuff?
