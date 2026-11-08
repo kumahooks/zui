@@ -44,11 +44,21 @@ pub const ItemState = struct {
     active: bool,
 };
 
-pub const MouseState = struct {
+/// The mouse snapshot for one frame.
+const MouseState = struct {
+    const Self = @This();
+
     position: raylib.Vector2,
     press: bool,
     hold: bool,
     release: bool,
+
+    fn update(self: *Self) void {
+        self.position = raylib.getMousePosition();
+        self.press = raylib.isMouseButtonPressed(raylib.MouseButton.left);
+        self.hold = raylib.isMouseButtonDown(raylib.MouseButton.left);
+        self.release = raylib.isMouseButtonReleased(raylib.MouseButton.left);
+    }
 };
 
 pub const Orchestrator = struct {
@@ -86,12 +96,7 @@ pub const Orchestrator = struct {
     pub fn update_start(self: *Self) void {
         std.debug.assert(self.id_stack_length == 0);
 
-        self.mouse_state = .{
-            .position = raylib.getMousePosition(),
-            .press = raylib.isMouseButtonPressed(raylib.MouseButton.left),
-            .hold = raylib.isMouseButtonDown(raylib.MouseButton.left),
-            .release = raylib.isMouseButtonReleased(raylib.MouseButton.left),
-        };
+        self.mouse_state.update();
     }
 
     /// Ends a frame, releasing the active item once the mouse is up.
@@ -271,4 +276,251 @@ test "Orchestrator.is_mouse_in" {
     try std.testing.expectEqual(false, orchestrator.is_mouse_in(.{ .x = 10, .y = 10, .width = 0, .height = 10 }));
 }
 
-// TODO: finish tests
+test "Orchestrator.update_item hover ownership" {
+    var orchestrator: Orchestrator = Orchestrator.init(raylib.Vector2{ .x = 0, .y = 0 });
+
+    const id: Id = orchestrator.get_id("owo");
+    const rectangle: raylib.Rectangle = .{
+        .x = 15,
+        .y = 15,
+        .width = 10,
+        .height = 10,
+    };
+
+    // outside `rectangle`, with no action being done, both `active` and `hovered` are false.
+    var item_state: ItemState = orchestrator.update_item(rectangle, id);
+    try std.testing.expectEqual(false, item_state.active);
+    try std.testing.expectEqual(false, item_state.hovered);
+    try std.testing.expectEqual(id_none, orchestrator.active_item_id);
+    try std.testing.expectEqual(id_none, orchestrator.hover_item_id);
+
+    // once calling `update_item` with the mouse position inside `rectangle`, `hovered` is expected to be true.
+    orchestrator.mouse_state.position = .{ .x = 16, .y = 16 };
+    item_state = orchestrator.update_item(rectangle, id);
+    try std.testing.expectEqual(false, item_state.active);
+    try std.testing.expectEqual(true, item_state.hovered);
+    try std.testing.expectEqual(id_none, orchestrator.active_item_id);
+    try std.testing.expectEqual(id, orchestrator.hover_item_id);
+}
+
+test "Orchestrator.update_item press and hold lifecycle" {
+    var orchestrator: Orchestrator = Orchestrator.init(raylib.Vector2{ .x = 0, .y = 0 });
+    orchestrator.mouse_state.position = .{ .x = 16, .y = 16 };
+
+    const id: Id = orchestrator.get_id("owo");
+    const rectangle: raylib.Rectangle = .{
+        .x = 15,
+        .y = 15,
+        .width = 10,
+        .height = 10,
+    };
+
+    // when just hovering inside the rectangle, the active state remains false.
+    var item_state: ItemState = orchestrator.update_item(rectangle, id);
+    try std.testing.expectEqual(false, item_state.active);
+    try std.testing.expectEqual(true, item_state.hovered);
+
+    // with a mouse press and hold, `active` becomes true.
+    orchestrator.mouse_state.press = true;
+    orchestrator.mouse_state.hold = true;
+    item_state = orchestrator.update_item(rectangle, id);
+    try std.testing.expectEqual(true, item_state.active);
+    try std.testing.expectEqual(true, item_state.hovered);
+    try std.testing.expectEqual(id, orchestrator.active_item_id);
+
+    // while holding, the state remains the same.
+    orchestrator.mouse_state.press = false;
+    item_state = orchestrator.update_item(rectangle, id);
+    try std.testing.expectEqual(true, item_state.active);
+    try std.testing.expectEqual(true, item_state.hovered);
+    try std.testing.expectEqual(id, orchestrator.active_item_id);
+
+    // next frame, while `hold` is still true, `active_item_id` remains the same.
+    orchestrator.update_finish();
+    try std.testing.expectEqual(id, orchestrator.active_item_id);
+
+    // now the mouse is not inside `rectangle` anymore, while `hold` is still true, so `hovered` is false and `active` remains.
+    orchestrator.mouse_state.position = .{ .x = 16, .y = 35 };
+    item_state = orchestrator.update_item(rectangle, id);
+    try std.testing.expectEqual(true, item_state.active);
+    try std.testing.expectEqual(false, item_state.hovered);
+    try std.testing.expectEqual(id_none, orchestrator.hover_item_id);
+
+    // when releasing outside, `active` survives, and is reset at the end of the frame.
+    orchestrator.mouse_state.press = false;
+    orchestrator.mouse_state.hold = false;
+    orchestrator.mouse_state.release = true;
+    item_state = orchestrator.update_item(rectangle, id);
+    try std.testing.expectEqual(true, item_state.active);
+    try std.testing.expectEqual(false, item_state.hovered);
+
+    orchestrator.update_finish();
+    try std.testing.expectEqual(id_none, orchestrator.active_item_id);
+
+    // next frame nothing is active or hovered anymore.
+    orchestrator.mouse_state.release = false;
+    item_state = orchestrator.update_item(rectangle, id);
+    try std.testing.expectEqual(false, item_state.active);
+    try std.testing.expectEqual(false, item_state.hovered);
+}
+
+test "Orchestrator.update_item press outside claims nothing" {
+    var orchestrator: Orchestrator = Orchestrator.init(raylib.Vector2{ .x = 0, .y = 0 });
+
+    const id: Id = orchestrator.get_id("owo");
+    const rectangle: raylib.Rectangle = .{
+        .x = 15,
+        .y = 15,
+        .width = 10,
+        .height = 10,
+    };
+
+    // with a mouse press and hold, but outside `rectangle`, both `active` and `hovered` remain false.
+    orchestrator.mouse_state.press = true;
+    orchestrator.mouse_state.hold = true;
+    var item_state: ItemState = orchestrator.update_item(rectangle, id);
+    try std.testing.expectEqual(false, item_state.active);
+    try std.testing.expectEqual(false, item_state.hovered);
+    try std.testing.expectEqual(id_none, orchestrator.active_item_id);
+
+    // `update_finish` with `hold` true keeps the empty `active_item_id`, as there's nothing below the pointer.
+    orchestrator.update_finish();
+    try std.testing.expectEqual(id_none, orchestrator.active_item_id);
+
+    // releasing outside also keeps `active_item_id` empty.
+    orchestrator.mouse_state.press = false;
+    orchestrator.mouse_state.hold = false;
+    orchestrator.mouse_state.release = true;
+    item_state = orchestrator.update_item(rectangle, id);
+    try std.testing.expectEqual(false, item_state.active);
+    try std.testing.expectEqual(false, item_state.hovered);
+
+    orchestrator.update_finish();
+    try std.testing.expectEqual(id_none, orchestrator.active_item_id);
+}
+
+test "Orchestrator.update_item state is properly owned by an item on hold" {
+    var orchestrator: Orchestrator = Orchestrator.init(raylib.Vector2{ .x = 0, .y = 0 });
+    orchestrator.mouse_state.position = .{ .x = 61, .y = 61 };
+
+    const id_first: Id = orchestrator.get_id("owo");
+    const rectangle_first: raylib.Rectangle = .{
+        .x = 15,
+        .y = 15,
+        .width = 10,
+        .height = 10,
+    };
+    const id_second: Id = orchestrator.get_id("uwu");
+    const rectangle_second: raylib.Rectangle = .{
+        .x = 60,
+        .y = 60,
+        .width = 10,
+        .height = 10,
+    };
+
+    // inside `rectangle_second`, with no action being done.
+    var item_state: ItemState = orchestrator.update_item(rectangle_second, id_second);
+    try std.testing.expectEqual(false, item_state.active);
+    try std.testing.expectEqual(true, item_state.hovered);
+    try std.testing.expectEqual(id_second, orchestrator.hover_item_id);
+
+    // pressing inside `rectangle_second`.
+    orchestrator.mouse_state.press = true;
+    orchestrator.mouse_state.hold = true;
+    item_state = orchestrator.update_item(rectangle_second, id_second);
+    try std.testing.expectEqual(true, item_state.active);
+    try std.testing.expectEqual(true, item_state.hovered);
+    try std.testing.expectEqual(id_second, orchestrator.active_item_id);
+
+    // next frame, while `hold` is still true, `active_item_id` remains the same.
+    orchestrator.mouse_state.press = false;
+    orchestrator.update_finish();
+    try std.testing.expectEqual(id_second, orchestrator.active_item_id);
+
+    // with the mouse within `rectangle_first`, `rectangle_second` loses the hover when the mouse leaves it.
+    // `rectangle_first` can't own it while `hold` is true, as the `active` state is still owned by `rectangle_second`.
+    orchestrator.mouse_state.position = .{ .x = 16, .y = 16 };
+
+    item_state = orchestrator.update_item(rectangle_second, id_second);
+    try std.testing.expectEqual(true, item_state.active);
+    try std.testing.expectEqual(false, item_state.hovered);
+
+    item_state = orchestrator.update_item(rectangle_first, id_first);
+    try std.testing.expectEqual(false, item_state.active);
+    try std.testing.expectEqual(false, item_state.hovered);
+
+    try std.testing.expectEqual(id_second, orchestrator.active_item_id);
+    try std.testing.expectEqual(id_none, orchestrator.hover_item_id);
+}
+
+test "Orchestrator.update_item release over another item" {
+    var orchestrator: Orchestrator = Orchestrator.init(raylib.Vector2{ .x = 0, .y = 0 });
+    orchestrator.mouse_state.position = .{ .x = 61, .y = 61 };
+
+    const id_first: Id = orchestrator.get_id("owo");
+    const rectangle_first: raylib.Rectangle = .{
+        .x = 15,
+        .y = 15,
+        .width = 10,
+        .height = 10,
+    };
+    const id_second: Id = orchestrator.get_id("uwu");
+    const rectangle_second: raylib.Rectangle = .{
+        .x = 60,
+        .y = 60,
+        .width = 10,
+        .height = 10,
+    };
+
+    // inside `rectangle_second`, with no action being done.
+    var item_state: ItemState = orchestrator.update_item(rectangle_second, id_second);
+    try std.testing.expectEqual(true, item_state.hovered);
+    try std.testing.expectEqual(false, item_state.active);
+
+    // press and hold within `rectangle_second`.
+    orchestrator.mouse_state.press = true;
+    orchestrator.mouse_state.hold = true;
+    item_state = orchestrator.update_item(rectangle_second, id_second);
+    try std.testing.expectEqual(true, item_state.active);
+
+    orchestrator.mouse_state.press = false;
+    orchestrator.update_finish();
+
+    // moving the mouse over `rectangle_first`, while `rectangle_second` owns `active`.
+    orchestrator.mouse_state.position = .{ .x = 16, .y = 16 };
+
+    item_state = orchestrator.update_item(rectangle_second, id_second);
+    try std.testing.expectEqual(true, item_state.active);
+    try std.testing.expectEqual(false, item_state.hovered);
+
+    item_state = orchestrator.update_item(rectangle_first, id_first);
+    try std.testing.expectEqual(false, item_state.active);
+    try std.testing.expectEqual(false, item_state.hovered);
+
+    // `rectangle_second` keeps `active` until `update_finish` if the `hold` is released on top of `rectangle_first`.
+    // after the release, `rectangle_first` owns the hover.
+    orchestrator.mouse_state.hold = false;
+    orchestrator.mouse_state.release = true;
+
+    item_state = orchestrator.update_item(rectangle_second, id_second);
+    try std.testing.expectEqual(true, item_state.active);
+    try std.testing.expectEqual(false, item_state.hovered);
+
+    item_state = orchestrator.update_item(rectangle_first, id_first);
+    try std.testing.expectEqual(false, item_state.active);
+    try std.testing.expectEqual(true, item_state.hovered);
+
+    try std.testing.expectEqual(id_second, orchestrator.active_item_id);
+    try std.testing.expectEqual(id_first, orchestrator.hover_item_id);
+
+    // at `update_finish`, `active_item_id` is reset, as the hold was released. no item had both `active` and `hovered`.
+    // this is considered a click out-of-bounds.
+    orchestrator.update_finish();
+    try std.testing.expectEqual(id_none, orchestrator.active_item_id);
+
+    // at the next frame, `rectangle_first` is still hovered.
+    orchestrator.mouse_state.release = false;
+    item_state = orchestrator.update_item(rectangle_first, id_first);
+    try std.testing.expectEqual(false, item_state.active);
+    try std.testing.expectEqual(true, item_state.hovered);
+}
