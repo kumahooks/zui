@@ -9,14 +9,14 @@ fn push_test_layout(orchestrator: *zui.Orchestrator) void {
 }
 
 test "Orchestrator.get_id derives different ids for different bytes" {
-    var orchestrator: zui.Orchestrator = zui.Orchestrator.init(raylib.Vector2{ .x = 0, .y = 0 });
+    var orchestrator: zui.Orchestrator = .{};
 
     try std.testing.expect(orchestrator.get_id("alpha") != orchestrator.get_id("beta"));
     try std.testing.expect(orchestrator.get_id("") != zui.id_none);
 }
 
 test "Orchestrator.push_id fills the stack then Orchestrator.pop_id clears it" {
-    var orchestrator: zui.Orchestrator = zui.Orchestrator.init(raylib.Vector2{ .x = 0, .y = 0 });
+    var orchestrator: zui.Orchestrator = .{};
     const capacity: u8 = @intCast(orchestrator.id_stack.len);
 
     while (orchestrator.id_stack_length < capacity) {
@@ -39,7 +39,7 @@ test "Orchestrator.push_id fills the stack then Orchestrator.pop_id clears it" {
 }
 
 test "Orchestrator.is_mouse_in" {
-    var orchestrator: zui.Orchestrator = zui.Orchestrator.init(raylib.Vector2{ .x = 0, .y = 0 });
+    var orchestrator: zui.Orchestrator = .{};
     const rectangle: raylib.Rectangle = .{ .x = 10, .y = 10, .width = 10, .height = 10 };
 
     const cases = [_]struct {
@@ -77,7 +77,7 @@ test "Orchestrator.is_mouse_in" {
 }
 
 test "Orchestrator.update_item hover ownership" {
-    var orchestrator: zui.Orchestrator = zui.Orchestrator.init(raylib.Vector2{ .x = 0, .y = 0 });
+    var orchestrator: zui.Orchestrator = .{};
 
     const id: zui.Id = orchestrator.get_id("owo");
     const rectangle: raylib.Rectangle = .{
@@ -111,7 +111,7 @@ test "Orchestrator.update_item hover ownership" {
 }
 
 test "Orchestrator.update_item press and hold lifecycle" {
-    var orchestrator: zui.Orchestrator = zui.Orchestrator.init(raylib.Vector2{ .x = 0, .y = 0 });
+    var orchestrator: zui.Orchestrator = .{};
     orchestrator.mouse_state.position = .{ .x = 16, .y = 16 };
 
     const id: zui.Id = orchestrator.get_id("owo");
@@ -174,7 +174,7 @@ test "Orchestrator.update_item press and hold lifecycle" {
 }
 
 test "Orchestrator.update_item press outside claims nothing" {
-    var orchestrator: zui.Orchestrator = zui.Orchestrator.init(raylib.Vector2{ .x = 0, .y = 0 });
+    var orchestrator: zui.Orchestrator = .{};
 
     const id: zui.Id = orchestrator.get_id("owo");
     const rectangle: raylib.Rectangle = .{
@@ -211,7 +211,7 @@ test "Orchestrator.update_item press outside claims nothing" {
 }
 
 test "Orchestrator.update_item state is properly owned by an item on hold" {
-    var orchestrator: zui.Orchestrator = zui.Orchestrator.init(raylib.Vector2{ .x = 0, .y = 0 });
+    var orchestrator: zui.Orchestrator = .{};
     orchestrator.mouse_state.position = .{ .x = 61, .y = 61 };
 
     const id_first: zui.Id = orchestrator.get_id("owo");
@@ -266,7 +266,7 @@ test "Orchestrator.update_item state is properly owned by an item on hold" {
 }
 
 test "Orchestrator.update_item release over another item" {
-    var orchestrator: zui.Orchestrator = zui.Orchestrator.init(raylib.Vector2{ .x = 0, .y = 0 });
+    var orchestrator: zui.Orchestrator = .{};
     orchestrator.mouse_state.position = .{ .x = 61, .y = 61 };
 
     const id_first: zui.Id = orchestrator.get_id("owo");
@@ -340,7 +340,7 @@ test "Orchestrator.update_item release over another item" {
 }
 
 test "Orchestrator.update_item hover transfers without an action" {
-    var orchestrator: zui.Orchestrator = zui.Orchestrator.init(raylib.Vector2{ .x = 0, .y = 0 });
+    var orchestrator: zui.Orchestrator = .{};
 
     const id_first: zui.Id = orchestrator.get_id("owo");
     const rectangle_first: raylib.Rectangle = .{
@@ -389,7 +389,7 @@ test "Orchestrator.update_item hover transfers without an action" {
 }
 
 test "Orchestrator.update_item press outside any area does not claim active" {
-    var orchestrator: zui.Orchestrator = zui.Orchestrator.init(raylib.Vector2{ .x = 0, .y = 0 });
+    var orchestrator: zui.Orchestrator = .{};
 
     const id: zui.Id = orchestrator.get_id("owo");
     const rectangle: raylib.Rectangle = .{

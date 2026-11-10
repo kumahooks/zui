@@ -4,6 +4,7 @@ const raylib = @import("raylib");
 
 pub const button = @import("button.zig");
 pub const layout = @import("layout.zig");
+pub const theme = @import("theme.zig");
 
 /// An item identity, derived from given bytes.
 pub const Id = u64;
@@ -21,24 +22,6 @@ comptime {
     std.debug.assert(id_root_seed != id_none);
     std.debug.assert(id_stack_capacity > 0);
 }
-
-/// Defines styles widgets.
-pub const Style = struct {
-    /// Font-related styles.
-    font: raylib.Font,
-    font_size: f32,
-    font_spacing: f32,
-    font_idle_color: raylib.Color,
-    font_hovered_color: raylib.Color,
-    font_active_color: raylib.Color,
-
-    /// Widget sizes.
-    widget_spacing: f32,
-    widget_size: raylib.Vector2,
-
-    /// Widget borders.
-    border_color: raylib.Color,
-};
 
 /// Defines types of actions on widgets.
 pub const WidgetResult = struct {
@@ -94,17 +77,6 @@ pub const Orchestrator = struct {
         .hold = false,
         .release = false,
     },
-
-    origin_left_position: raylib.Vector2 = .{ .x = 0, .y = 0 },
-
-    pub fn init(origin_left_position: raylib.Vector2) Self {
-        std.debug.assert(std.math.isFinite(origin_left_position.x));
-        std.debug.assert(std.math.isFinite(origin_left_position.y));
-
-        return .{
-            .origin_left_position = origin_left_position,
-        };
-    }
 
     /// Begins a frame, gathering input.
     ///
@@ -279,7 +251,14 @@ pub const Orchestrator = struct {
     /// When the current row ended, it starts a new row below the lowest row with `start_row`.
     ///
     /// Always requires a layout pushed by `push_layout`.
-    pub fn next_layout(self: *Self, style: *const Style) raylib.Rectangle {
+    pub fn next_layout(self: *Self, layout_defaults: *const theme.Layout) raylib.Rectangle {
+        std.debug.assert(std.math.isFinite(layout_defaults.widget_size.x));
+        std.debug.assert(std.math.isFinite(layout_defaults.widget_size.y));
+        std.debug.assert(layout_defaults.widget_size.x > 0);
+        std.debug.assert(layout_defaults.widget_size.y > 0);
+        std.debug.assert(std.math.isFinite(layout_defaults.widget_spacing));
+        std.debug.assert(layout_defaults.widget_spacing >= 0);
+
         var current_layout: *layout.Layout = self.get_current_layout();
         var rectangle_result: raylib.Rectangle = .{ .x = 0, .y = 0, .width = 0, .height = 0 };
 
@@ -296,22 +275,22 @@ pub const Orchestrator = struct {
         const width: f32 = switch (current_layout.slot_widths[current_layout.slot_next]) {
             .exact => |exact_width| exact_width,
             .fill => current_layout.body_rectangle.width - current_layout.slot_position.x,
-            .default => style.widget_size.x,
+            .default => layout_defaults.widget_size.x,
         };
         rectangle_result.width = width;
 
-        // calculate the height of the new slot. it's either defined as `slot_height` or falls back to the style's default `widget_size.y`.
-        const height: f32 = if (current_layout.slot_height == 0) style.widget_size.y else current_layout.slot_height;
+        // calculate the height of the new slot. it's either defined as `slot_height` or falls back to the layout defaults' `widget_size.y`.
+        const height: f32 = if (current_layout.slot_height == 0) layout_defaults.widget_size.y else current_layout.slot_height;
         rectangle_result.height = height;
 
         // advance the `slot_next` index and `x` position based on the current one.
         current_layout.slot_next += 1;
-        current_layout.slot_position.x += width + style.widget_spacing;
+        current_layout.slot_position.x += width + layout_defaults.widget_spacing;
         current_layout.next_row_y = @max(
             // keep the lowest point from the earlier rows.
             current_layout.next_row_y,
             // bottom of this row plus the gap before the next row.
-            current_layout.slot_position.y + height + style.widget_spacing,
+            current_layout.slot_position.y + height + layout_defaults.widget_spacing,
         );
 
         return rectangle_result;
@@ -335,7 +314,7 @@ pub const Orchestrator = struct {
 };
 
 test "Orchestrator.id_stack scopes correctly" {
-    var orchestrator: Orchestrator = Orchestrator.init(raylib.Vector2{ .x = 0, .y = 0 });
+    var orchestrator: Orchestrator = .{};
 
     try std.testing.expectEqual(0, orchestrator.id_stack_length);
     try std.testing.expectEqual(id_root_seed, orchestrator.get_current_scope_id());
@@ -363,7 +342,7 @@ test "Orchestrator.id_stack scopes correctly" {
 }
 
 test "Orchestrator scopes depend on parent id and label" {
-    var orchestrator: Orchestrator = Orchestrator.init(raylib.Vector2{ .x = 0, .y = 0 });
+    var orchestrator: Orchestrator = .{};
 
     // despite sharing the same label, under different parents, the ids are different.
     orchestrator.push_id("owo");
