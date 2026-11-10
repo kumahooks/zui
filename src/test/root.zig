@@ -3,6 +3,11 @@ const std = @import("std");
 const raylib = @import("raylib");
 const zui = @import("zui");
 
+fn push_test_layout(orchestrator: *zui.Orchestrator) void {
+    std.debug.assert(orchestrator.layout_stack_length == 0);
+    orchestrator.push_layout(.{ .x = 0, .y = 0, .width = 1, .height = 1 });
+}
+
 test "Orchestrator.get_id derives different ids for different bytes" {
     var orchestrator: zui.Orchestrator = zui.Orchestrator.init(raylib.Vector2{ .x = 0, .y = 0 });
 
@@ -138,6 +143,7 @@ test "Orchestrator.update_item press and hold lifecycle" {
     try std.testing.expectEqual(id, orchestrator.active_item_id);
 
     // next frame, while `hold` is still true, `active_item_id` remains the same.
+    push_test_layout(&orchestrator);
     orchestrator.update_finish();
     try std.testing.expectEqual(id, orchestrator.active_item_id);
 
@@ -156,6 +162,7 @@ test "Orchestrator.update_item press and hold lifecycle" {
     try std.testing.expectEqual(true, item_state.active);
     try std.testing.expectEqual(false, item_state.hovered);
 
+    push_test_layout(&orchestrator);
     orchestrator.update_finish();
     try std.testing.expectEqual(zui.id_none, orchestrator.active_item_id);
 
@@ -186,6 +193,7 @@ test "Orchestrator.update_item press outside claims nothing" {
     try std.testing.expectEqual(zui.id_none, orchestrator.active_item_id);
 
     // `update_finish` with `hold` true keeps the empty `active_item_id`, as there's nothing below the pointer.
+    push_test_layout(&orchestrator);
     orchestrator.update_finish();
     try std.testing.expectEqual(zui.id_none, orchestrator.active_item_id);
 
@@ -197,6 +205,7 @@ test "Orchestrator.update_item press outside claims nothing" {
     try std.testing.expectEqual(false, item_state.active);
     try std.testing.expectEqual(false, item_state.hovered);
 
+    push_test_layout(&orchestrator);
     orchestrator.update_finish();
     try std.testing.expectEqual(zui.id_none, orchestrator.active_item_id);
 }
@@ -236,6 +245,7 @@ test "Orchestrator.update_item state is properly owned by an item on hold" {
 
     // next frame, while `hold` is still true, `active_item_id` remains the same.
     orchestrator.mouse_state.press = false;
+    push_test_layout(&orchestrator);
     orchestrator.update_finish();
     try std.testing.expectEqual(id_second, orchestrator.active_item_id);
 
@@ -286,6 +296,7 @@ test "Orchestrator.update_item release over another item" {
     try std.testing.expectEqual(true, item_state.active);
 
     orchestrator.mouse_state.press = false;
+    push_test_layout(&orchestrator);
     orchestrator.update_finish();
 
     // moving the mouse over `rectangle_first`, while `rectangle_second` owns `active`.
@@ -317,6 +328,7 @@ test "Orchestrator.update_item release over another item" {
 
     // at `update_finish`, `active_item_id` is reset, as the hold was released. no item had both `active` and `hovered`.
     // this is considered a click out-of-bounds.
+    push_test_layout(&orchestrator);
     orchestrator.update_finish();
     try std.testing.expectEqual(zui.id_none, orchestrator.active_item_id);
 
@@ -416,6 +428,7 @@ test "Orchestrator.update_item press outside any area does not claim active" {
     try std.testing.expectEqual(true, item_state.hovered);
     try std.testing.expectEqual(id, orchestrator.hover_item_id);
 
+    push_test_layout(&orchestrator);
     orchestrator.update_finish();
     try std.testing.expectEqual(zui.id_none, orchestrator.active_item_id);
 }
