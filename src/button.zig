@@ -4,26 +4,21 @@ const raylib = @import("raylib");
 
 const zui = @import("root.zig");
 
-pub fn render(orchestrator: *zui.Orchestrator, label: [:0]const u8, style: *const zui.Style, coordinate: raylib.Vector2) zui.WidgetResult {
+pub fn render(orchestrator: *zui.Orchestrator, label: [:0]const u8, style: *const zui.Style, rectangle: raylib.Rectangle) zui.WidgetResult {
     std.debug.assert(style.font.texture.id != 0);
     std.debug.assert(style.font_size > 0);
     std.debug.assert(std.math.isFinite(style.font_size));
     std.debug.assert(std.math.isFinite(style.font_spacing));
-    std.debug.assert(std.math.isFinite(coordinate.x));
-    std.debug.assert(std.math.isFinite(coordinate.y));
+    std.debug.assert(std.math.isFinite(rectangle.x));
+    std.debug.assert(std.math.isFinite(rectangle.y));
+    std.debug.assert(std.math.isFinite(rectangle.width));
+    std.debug.assert(std.math.isFinite(rectangle.height));
+    std.debug.assert(rectangle.width >= 0);
+    std.debug.assert(rectangle.height >= 0);
 
     const id: zui.Id = orchestrator.get_id(label);
 
-    // gathers the area of the button.
-    const label_size: raylib.Vector2 = raylib.measureTextEx(style.font, label, style.font_size, style.font_spacing);
-    const rectangle: raylib.Rectangle = .{
-        .x = coordinate.x,
-        .y = coordinate.y,
-        .width = label_size.x,
-        .height = label_size.y,
-    };
-
-    // updates the hover and active status based on mouse position and button area.
+    // updates the hover and active status based on mouse position and the button's slot area.
     const item_state: zui.ItemState = orchestrator.update_item(rectangle, id);
 
     // handles the mouse action.
@@ -34,7 +29,7 @@ pub fn render(orchestrator: *zui.Orchestrator, label: [:0]const u8, style: *cons
         result.held = orchestrator.mouse_state.hold;
     }
 
-    // draws the button.
+    // draws the button at the slot's top-left corner.
     var color: raylib.Color = style.font_idle_color;
     if (item_state.active) {
         color = style.font_active_color;
@@ -46,13 +41,16 @@ pub fn render(orchestrator: *zui.Orchestrator, label: [:0]const u8, style: *cons
     raylib.drawTextPro(
         style.font,
         label,
-        coordinate,
+        .{ .x = rectangle.x, .y = rectangle.y },
         orchestrator.origin_left_position,
         0,
         style.font_size,
         style.font_spacing,
         color,
     );
+
+    // TODO: this is just to visualize the layout grid, needs to change once the button's default style is settled.
+    raylib.drawRectangleLinesEx(rectangle, 1, style.border_color);
 
     return result;
 }

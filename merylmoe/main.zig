@@ -11,6 +11,7 @@ const background_color: raylib.Color = .{ .r = 0, .g = 0, .b = 0, .a = 212 };
 const idle_color: raylib.Color = .{ .r = 184, .g = 92, .b = 131, .a = 255 };
 const hovered_color: raylib.Color = .{ .r = 184, .g = 192, .b = 131, .a = 255 };
 const active_color: raylib.Color = .{ .r = 230, .g = 130, .b = 170, .a = 255 };
+const border_color: raylib.Color = .{ .r = 96, .g = 96, .b = 96, .a = 255 };
 
 pub fn main() !void {
     raylib.setConfigFlags(constants.raylib_config_flags);
@@ -34,6 +35,10 @@ pub fn main() !void {
         .font_idle_color = idle_color,
         .font_hovered_color = hovered_color,
         .font_active_color = active_color,
+
+        .widget_spacing = 8,
+        .widget_size = .{ .x = 160, .y = 28 },
+        .border_color = border_color,
     };
     var orchestrator: zui.Orchestrator = zui.Orchestrator.init(.{ .x = 0, .y = 0 });
 
@@ -45,6 +50,24 @@ pub fn main() !void {
         raylib.clearBackground(background_color);
 
         orchestrator.update_start();
+
+        // defines the first app's layout, which is the main content.
+        const window: raylib.Rectangle = .{
+            .x = default_style.widget_spacing,
+            .y = default_style.widget_size.y + default_style.widget_spacing,
+            .width = @as(f32, @floatFromInt(raylib.getScreenWidth())) - default_style.widget_spacing * 2,
+            .height = @as(f32, @floatFromInt(raylib.getScreenHeight())) - (default_style.widget_size.y + default_style.widget_spacing * 2),
+        };
+        orchestrator.push_layout(window);
+
+        const column_count: u8 = 5;
+        const row_count: u8 = 5;
+
+        const column_gap_total: f32 = default_style.widget_spacing * @as(f32, @floatFromInt(column_count - 1));
+        const cell_width: f32 = (window.width - column_gap_total) / @as(f32, @floatFromInt(column_count));
+
+        const row_slot_widths: [column_count]zui.layout.SlotWidth = @splat(.{ .exact = cell_width });
+        orchestrator.get_current_layout().declare_row(&row_slot_widths, default_style.widget_size.y);
 
         // TODO: remove temp debug.
         const coordinate_buffer_capacity: u8 = 64;
@@ -58,13 +81,24 @@ pub fn main() !void {
         draw_text_from_left(coordinate, .{ .x = constants.header_horizontal_padding, .y = constants.header_vertical_padding }, &font);
 
         // TODO: remove temp debug.
-        const button_position: raylib.Vector2 = .{ .x = 250, .y = 250 };
         const debug_held_position: raylib.Vector2 = .{ .x = 250, .y = 300 };
         const debug_clicks_position: raylib.Vector2 = .{ .x = 250, .y = 330 };
 
-        const button_result = zui.button.render(&orchestrator, "owo", &default_style, button_position);
-        if (button_result.clicked) clicks += 1;
-        if (button_result.held) draw_text_from_left("held", debug_held_position, &font);
+        const button_count: u8 = row_count * column_count;
+        var button_index: u8 = 0;
+        var any_held: bool = false;
+        while (button_index < button_count) : (button_index += 1) {
+            const rectangle: raylib.Rectangle = orchestrator.next_layout(&default_style);
+
+            var label_buffer: [8]u8 = @splat(0);
+            const label: [:0]u8 = try std.mem.printSentinel(&label_buffer, "{d}", .{button_index}, 0);
+
+            const button_result = zui.button.render(&orchestrator, label, &default_style, rectangle);
+            if (button_result.clicked) clicks += 1;
+            if (button_result.held) any_held = true;
+        }
+
+        if (any_held) draw_text_from_left("held", debug_held_position, &font);
 
         // TODO: remove temp debug.
         const counter_buffer_capacity: u8 = 32;

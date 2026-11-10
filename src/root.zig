@@ -3,6 +3,7 @@ const std = @import("std");
 const raylib = @import("raylib");
 
 pub const button = @import("button.zig");
+pub const layout = @import("layout.zig");
 
 /// An item identity, derived from given bytes.
 pub const Id = u64;
@@ -13,19 +14,30 @@ const id_root_seed: Id = std.math.maxInt(Id);
 /// Fixed length of the widget identity stack.
 const id_stack_capacity: u8 = 32;
 
+/// Fixed length of the layout stack.
+const layout_stack_capacity: u8 = 32;
+
 comptime {
     std.debug.assert(id_root_seed != id_none);
     std.debug.assert(id_stack_capacity > 0);
 }
 
-/// Defines styles for each widget.
+/// Defines styles widgets.
 pub const Style = struct {
+    /// Font-related styles.
     font: raylib.Font,
     font_size: f32,
     font_spacing: f32,
     font_idle_color: raylib.Color,
     font_hovered_color: raylib.Color,
     font_active_color: raylib.Color,
+
+    /// Widget sizes.
+    widget_spacing: f32,
+    widget_size: raylib.Vector2,
+
+    /// Widget borders.
+    border_color: raylib.Color,
 };
 
 /// Defines types of actions on widgets.
@@ -63,6 +75,10 @@ const MouseState = struct {
 
 pub const Orchestrator = struct {
     const Self = @This();
+
+    /// Layout scopes.
+    layout_stack: [layout_stack_capacity]layout.Layout = @splat(.{}),
+    layout_stack_length: u8 = 0,
 
     /// Widget identity scopes.
     id_stack: [id_stack_capacity]Id = @splat(id_none),
@@ -102,6 +118,8 @@ pub const Orchestrator = struct {
     /// Ends a frame, releasing the active item once the mouse is up.
     pub fn update_finish(self: *Self) void {
         std.debug.assert(self.id_stack_length == 0);
+
+        self.layout_stack_length = 0;
 
         if (self.mouse_state.hold) return;
 
@@ -209,6 +227,81 @@ pub const Orchestrator = struct {
         }
 
         return id_root_seed;
+    }
+
+    /// Pushes a layout for `body_rectangle` and makes it the current one.
+    ///
+    /// The new layout starts with `.default` slot width and zero height. The next call for `next_layout` resolves it.
+    /// `body_rectangle` represents the current screen coordinates.
+    ///
+    /// The layout stack is cleared by `update_finish`. Pushed layouts should be called between `update_start` and `update_finish`.
+    pub fn push_layout(self: *Self, body_rectangle: raylib.Rectangle) void {
+        std.debug.assert(std.math.isFinite(body_rectangle.x));
+        std.debug.assert(std.math.isFinite(body_rectangle.y));
+        std.debug.assert(std.math.isFinite(body_rectangle.width));
+        std.debug.assert(std.math.isFinite(body_rectangle.height));
+        std.debug.assert(body_rectangle.x >= 0);
+        std.debug.assert(body_rectangle.y >= 0);
+        std.debug.assert(body_rectangle.width > 0);
+        std.debug.assert(body_rectangle.height > 0);
+        std.debug.assert(self.layout_stack_length < layout_stack_capacity);
+
+        var element: layout.Layout = .{};
+        element.body_rectangle = body_rectangle;
+        element.declare_row(&[1]layout.SlotWidth{.default}, 0);
+
+        self.layout_stack[self.layout_stack_length] = element;
+        self.layout_stack_length += 1;
+    }
+
+    /// Calculates and returns the next slot rectangle in screen coordinates.
+    ///
+    /// When the current row ended, it starts a new row below the lowest row with `start_row`.
+    ///
+    /// Always requires a layout pushed by `push_layout`.
+    pub fn next_layout(self: *Self, style: *const Style) raylib.Rectangle {
+        var current_layout: *layout.Layout = self.get_current_layout();
+        var rectangle_result: raylib.Rectangle = .{ .x = 0, .y = 0, .width = 0, .height = 0 };
+
+        // if every slot in the row has been used, start a new row below the last one.
+        if (current_layout.slot_next == current_layout.slot_count) {
+            current_layout.start_row();
+        }
+
+        // the slot starts at the body origin plus its local position. `x` is the current column, while `y` is the current row.
+        rectangle_result.x = current_layout.body_rectangle.x + current_layout.slot_position.x;
+        rectangle_result.y = current_layout.body_rectangle.y + current_layout.slot_position.y;
+
+        // calculate the width of the current slot based on `slot_widths[slot_next]`.
+        const width: f32 = switch (current_layout.slot_widths[current_layout.slot_next]) {
+            .exact => |exact_width| exact_width,
+            .fill => current_layout.body_rectangle.width - current_layout.slot_position.x,
+            .default => style.widget_size.x,
+        };
+        rectangle_result.width = width;
+
+        // calculate the height of the new slot. it's either defined as `slot_height` or falls back to the style's default `widget_size.y`.
+        const height: f32 = if (current_layout.slot_height == 0) style.widget_size.y else current_layout.slot_height;
+        rectangle_result.height = height;
+
+        // advance the `slot_next` index and `x` position based on the current one.
+        current_layout.slot_next += 1;
+        current_layout.slot_position.x += width + style.widget_spacing;
+        current_layout.next_row_y = @max(
+            // keep the lowest point from the earlier rows.
+            current_layout.next_row_y,
+            // bottom of this row plus the gap before the next row.
+            current_layout.slot_position.y + height + style.widget_spacing,
+        );
+
+        return rectangle_result;
+    }
+
+    pub fn get_current_layout(self: *Self) *layout.Layout {
+        std.debug.assert(self.layout_stack_length <= self.layout_stack.len);
+        std.debug.assert(self.layout_stack_length > 0);
+
+        return &self.layout_stack[self.layout_stack_length - 1];
     }
 };
 
