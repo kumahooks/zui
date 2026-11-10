@@ -42,83 +42,44 @@ pub fn main() !void {
     };
     var orchestrator: zui.Orchestrator = zui.Orchestrator.init(.{ .x = 0, .y = 0 });
 
-    // TODO: remove temp debug.
-    var clicks: u64 = 0;
-
     while (!raylib.windowShouldClose()) {
         raylib.beginDrawing();
         raylib.clearBackground(background_color);
 
-        orchestrator.update_start(default_style);
+        // main window page.
+        const page: raylib.Rectangle = .{
+            .x = 0,
+            .y = 0,
+            .width = @as(f32, @floatFromInt(raylib.getScreenWidth())),
+            .height = @as(f32, @floatFromInt(raylib.getScreenHeight())),
+        };
+        orchestrator.update_start(page);
 
-        const main_content_rectangle: raylib.Rectangle = orchestrator.content_rectangle();
-        const column_count: u8 = 5;
-        const row_count: u8 = 5;
+        const spacing: f32 = default_style.widget_spacing;
+        const content: raylib.Rectangle = .{
+            .x = page.x + spacing,
+            .y = page.y + spacing,
+            .width = @max(0, page.width - spacing * 2),
+            .height = @max(0, page.height - spacing * 2),
+        };
+        orchestrator.push_layout(content);
 
-        const column_gap_total: f32 = default_style.widget_spacing * @as(f32, @floatFromInt(column_count - 1));
-        const cell_width: f32 = (main_content_rectangle.width - column_gap_total) / @as(f32, @floatFromInt(column_count));
-
-        const row_slot_widths: [column_count]zui.layout.SlotWidth = @splat(.{ .exact = cell_width });
-        orchestrator.declare_layout_row(&row_slot_widths, default_style.widget_size.y);
-
-        // TODO: remove temp debug.
-        const coordinate_buffer_capacity: u8 = 64;
-        var coordinates_buffer: [coordinate_buffer_capacity]u8 = @splat(0);
-        const coordinate: [:0]u8 = try std.mem.printSentinel(
-            &coordinates_buffer,
-            "{d:.0}, {d:.0}",
-            .{ orchestrator.mouse_state.position.x, orchestrator.mouse_state.position.y },
-            0,
-        );
-        draw_text_from_left(coordinate, .{ .x = constants.header_horizontal_padding, .y = constants.header_vertical_padding }, &font);
-
-        // TODO: remove temp debug.
-        const debug_held_position: raylib.Vector2 = .{ .x = 250, .y = 300 };
-        const debug_clicks_position: raylib.Vector2 = .{ .x = 250, .y = 330 };
-
-        const button_count: u8 = row_count * column_count;
-        var button_index: u8 = 0;
-        var any_held: bool = false;
-        while (button_index < button_count) : (button_index += 1) {
+        const header_buttons_widths: [3]zui.layout.SlotWidth = .{
+            .{ .exact = 100 },
+            .{ .exact = 100 },
+            .{ .exact = 100 },
+        };
+        orchestrator.declare_layout_row(&header_buttons_widths, default_style.font_size);
+        const header_buttons_labels: [3][:0]const u8 = .{ "-", "O", "X" };
+        for (header_buttons_labels) |label| {
             const rectangle: raylib.Rectangle = orchestrator.next_layout(&default_style);
-
-            var label_buffer: [8]u8 = @splat(0);
-            const label: [:0]u8 = try std.mem.printSentinel(&label_buffer, "{d}", .{button_index}, 0);
-
-            const button_result = zui.button.render(&orchestrator, label, &default_style, rectangle);
-            if (button_result.clicked) clicks += 1;
-            if (button_result.held) any_held = true;
+            _ = zui.button.render(&orchestrator, label, &default_style, rectangle);
         }
 
-        if (any_held) draw_text_from_left("held", debug_held_position, &font);
-
-        // TODO: remove temp debug.
-        const counter_buffer_capacity: u8 = 32;
-        var clicks_counter_buffer: [counter_buffer_capacity]u8 = @splat(0);
-        const counter: [:0]u8 = try std.mem.printSentinel(&clicks_counter_buffer, "clicks: {d}", .{clicks}, 0);
-        draw_text_from_left(counter, debug_clicks_position, &font);
+        orchestrator.pop_layout();
 
         orchestrator.update_finish();
 
         raylib.endDrawing();
     }
-}
-
-// draw_text_from_left draws text from the left origin position at `coordinate`.
-// TODO: temporary, this will be its own text widget later.
-fn draw_text_from_left(text: [:0]const u8, coordinate: raylib.Vector2, font: *const raylib.Font) void {
-    std.debug.assert(std.math.isFinite(coordinate.x));
-    std.debug.assert(std.math.isFinite(coordinate.y));
-    std.debug.assert(font.texture.id != 0);
-
-    raylib.drawTextPro(
-        font.*,
-        text,
-        coordinate,
-        constants.position_origin_left,
-        0,
-        constants.font_size,
-        constants.font_spacing,
-        idle_color,
-    );
 }

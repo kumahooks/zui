@@ -109,16 +109,20 @@ pub const Orchestrator = struct {
     /// Begins a frame, gathering input.
     ///
     /// Every `push_id` ran between this call and `update_finish` must have an equivalent `pop_id`.
-    pub fn update_start(self: *Self, style: Style) void {
+    pub fn update_start(self: *Self, page: raylib.Rectangle) void {
         std.debug.assert(self.id_stack_length == 0);
+        std.debug.assert(self.layout_stack_length == 0);
+        std.debug.assert(std.math.isFinite(page.x));
+        std.debug.assert(page.x >= 0);
+        std.debug.assert(std.math.isFinite(page.y));
+        std.debug.assert(page.y >= 0);
+        std.debug.assert(std.math.isFinite(page.width));
+        std.debug.assert(page.width >= 0);
+        std.debug.assert(std.math.isFinite(page.height));
+        std.debug.assert(page.height >= 0);
 
-        // defines the app's root layout, which represents the main content.
-        self.push_layout(.{
-            .x = style.widget_spacing,
-            .y = style.widget_spacing,
-            .width = @as(f32, @floatFromInt(raylib.getScreenWidth())) - style.widget_spacing * 2,
-            .height = @as(f32, @floatFromInt(raylib.getScreenHeight())) - (style.widget_size.y + style.widget_spacing * 2),
-        });
+        // defines the app's root page layout, which represents the whole window screen.
+        self.push_layout(page);
 
         self.mouse_state.update();
     }
@@ -126,6 +130,7 @@ pub const Orchestrator = struct {
     /// Ends a frame, releasing the active item once the mouse is up.
     pub fn update_finish(self: *Self) void {
         std.debug.assert(self.id_stack_length == 0);
+        std.debug.assert(self.layout_stack_length == 1);
 
         self.layout_stack_length = 0;
 
@@ -250,8 +255,8 @@ pub const Orchestrator = struct {
         std.debug.assert(std.math.isFinite(body_rectangle.height));
         std.debug.assert(body_rectangle.x >= 0);
         std.debug.assert(body_rectangle.y >= 0);
-        std.debug.assert(body_rectangle.width > 0);
-        std.debug.assert(body_rectangle.height > 0);
+        std.debug.assert(body_rectangle.width >= 0);
+        std.debug.assert(body_rectangle.height >= 0);
         std.debug.assert(self.layout_stack_length < layout_stack_capacity);
 
         var element: layout.Layout = .{};
@@ -260,6 +265,13 @@ pub const Orchestrator = struct {
 
         self.layout_stack[self.layout_stack_length] = element;
         self.layout_stack_length += 1;
+    }
+
+    pub fn pop_layout(self: *Self) void {
+        std.debug.assert(self.layout_stack_length > 1); // root layout shouldn't be popped.
+
+        self.layout_stack[self.layout_stack_length - 1] = .{};
+        self.layout_stack_length -= 1;
     }
 
     /// Calculates and returns the next slot rectangle in screen coordinates.
