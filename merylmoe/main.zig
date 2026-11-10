@@ -49,25 +49,17 @@ pub fn main() !void {
         raylib.beginDrawing();
         raylib.clearBackground(background_color);
 
-        orchestrator.update_start();
+        orchestrator.update_start(default_style);
 
-        // defines the first app's layout, which is the main content.
-        const window: raylib.Rectangle = .{
-            .x = default_style.widget_spacing,
-            .y = default_style.widget_size.y + default_style.widget_spacing,
-            .width = @as(f32, @floatFromInt(raylib.getScreenWidth())) - default_style.widget_spacing * 2,
-            .height = @as(f32, @floatFromInt(raylib.getScreenHeight())) - (default_style.widget_size.y + default_style.widget_spacing * 2),
-        };
-        orchestrator.push_layout(window);
-
+        const main_content_rectangle: raylib.Rectangle = orchestrator.content_rectangle();
         const column_count: u8 = 5;
         const row_count: u8 = 5;
 
         const column_gap_total: f32 = default_style.widget_spacing * @as(f32, @floatFromInt(column_count - 1));
-        const cell_width: f32 = (window.width - column_gap_total) / @as(f32, @floatFromInt(column_count));
+        const cell_width: f32 = (main_content_rectangle.width - column_gap_total) / @as(f32, @floatFromInt(column_count));
 
         const row_slot_widths: [column_count]zui.layout.SlotWidth = @splat(.{ .exact = cell_width });
-        orchestrator.get_current_layout().declare_row(&row_slot_widths, default_style.widget_size.y);
+        orchestrator.declare_layout_row(&row_slot_widths, default_style.widget_size.y);
 
         // TODO: remove temp debug.
         const coordinate_buffer_capacity: u8 = 64;

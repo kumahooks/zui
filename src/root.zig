@@ -109,8 +109,16 @@ pub const Orchestrator = struct {
     /// Begins a frame, gathering input.
     ///
     /// Every `push_id` ran between this call and `update_finish` must have an equivalent `pop_id`.
-    pub fn update_start(self: *Self) void {
+    pub fn update_start(self: *Self, style: Style) void {
         std.debug.assert(self.id_stack_length == 0);
+
+        // defines the app's root layout, which represents the main content.
+        self.push_layout(.{
+            .x = style.widget_spacing,
+            .y = style.widget_spacing,
+            .width = @as(f32, @floatFromInt(raylib.getScreenWidth())) - style.widget_spacing * 2,
+            .height = @as(f32, @floatFromInt(raylib.getScreenHeight())) - (style.widget_size.y + style.widget_spacing * 2),
+        });
 
         self.mouse_state.update();
     }
@@ -302,6 +310,15 @@ pub const Orchestrator = struct {
         std.debug.assert(self.layout_stack_length > 0);
 
         return &self.layout_stack[self.layout_stack_length - 1];
+    }
+
+    pub fn declare_layout_row(self: *Self, slot_widths: []const layout.SlotWidth, slot_height: f32) void {
+        return self.get_current_layout().declare_row(slot_widths, slot_height);
+    }
+
+    pub fn content_rectangle(self: *Self) raylib.Rectangle {
+        std.debug.assert(self.layout_stack_length > 0);
+        return self.layout_stack[self.layout_stack_length - 1].body_rectangle;
     }
 };
 
