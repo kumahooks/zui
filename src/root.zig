@@ -3,6 +3,7 @@ const std = @import("std");
 const raylib = @import("raylib");
 
 pub const button = @import("button.zig");
+pub const header = @import("header.zig");
 pub const layout = @import("layout.zig");
 pub const theme = @import("theme.zig");
 

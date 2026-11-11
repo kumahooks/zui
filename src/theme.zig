@@ -32,6 +32,7 @@ comptime {
 
 pub const Palette = struct {
     background: raylib.Color,
+    background_header: raylib.Color,
 
     text: raylib.Color,
     text_hovered: raylib.Color,
@@ -41,7 +42,8 @@ pub const Palette = struct {
 };
 
 const default_palette: Palette = .{
-    .background = .{ .r = 0, .g = 0, .b = 0, .a = 212 },
+    .background = .{ .r = 0, .g = 0, .b = 0, .a = 255 },
+    .background_header = .{ .r = 13, .g = 13, .b = 13, .a = 255 },
 
     .text = .{ .r = 184, .g = 92, .b = 131, .a = 255 },
     .text_hovered = .{ .r = 184, .g = 192, .b = 131, .a = 255 },
