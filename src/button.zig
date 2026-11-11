@@ -28,11 +28,14 @@ pub fn render(
     options: Options,
 ) zui.WidgetResult {
     std.debug.assert(theme.typography.font.texture.id != 0);
+    std.debug.assert(theme.typography.font.baseSize > 0);
     std.debug.assert(std.math.isFinite(rectangle.x));
+    std.debug.assert(rectangle.x >= 0);
     std.debug.assert(std.math.isFinite(rectangle.y));
+    std.debug.assert(rectangle.y >= 0);
     std.debug.assert(std.math.isFinite(rectangle.width));
-    std.debug.assert(std.math.isFinite(rectangle.height));
     std.debug.assert(rectangle.width >= 0);
+    std.debug.assert(std.math.isFinite(rectangle.height));
     std.debug.assert(rectangle.height >= 0);
 
     const font_size: f32 = options.font_size orelse theme.typography.size;

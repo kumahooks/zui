@@ -21,6 +21,7 @@ pub fn main() !void {
     };
     defer raylib.unloadFont(font);
     std.debug.assert(font.texture.id != 0);
+    std.debug.assert(font.baseSize > 0);
 
     var orchestrator: zui.Orchestrator = .{};
     const theme: zui.theme.Theme = zui.theme.default(font);
@@ -44,7 +45,7 @@ pub fn main() !void {
         };
         orchestrator.declare_layout_row(&header_width, constants.header_height);
         const header_rectangle: raylib.Rectangle = orchestrator.next_layout(&theme.layout);
-        zui.header.render(header_rectangle, &theme, .{});
+        zui.header.render(header_rectangle, &theme, .{ .title = constants.window_title });
 
         // body content after the header.
         const page_padding: f32 = constants.page_padding;
