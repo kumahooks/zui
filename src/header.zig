@@ -16,11 +16,7 @@ const defaults = struct {
     const title_padding: f32 = 8;
 };
 
-pub fn render(
-    rectangle: raylib.Rectangle,
-    theme: *const zui.theme.Theme,
-    options: Options,
-) void {
+pub fn render(rectangle: raylib.Rectangle, theme: *const zui.theme.Theme, options: Options) void {
     std.debug.assert(std.math.isFinite(rectangle.x));
     std.debug.assert(rectangle.x >= 0);
     std.debug.assert(std.math.isFinite(rectangle.y));

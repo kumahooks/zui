@@ -20,13 +20,7 @@ const defaults = struct {
     const border_thickness: f32 = 1;
 };
 
-pub fn render(
-    orchestrator: *zui.Orchestrator,
-    label: [:0]const u8,
-    rectangle: raylib.Rectangle,
-    theme: *const zui.theme.Theme,
-    options: Options,
-) zui.WidgetResult {
+pub fn render(orchestrator: *zui.Orchestrator, label: [:0]const u8, rectangle: raylib.Rectangle, theme: *const zui.theme.Theme, options: Options) zui.WidgetResult {
     std.debug.assert(theme.typography.font.texture.id != 0);
     std.debug.assert(theme.typography.font.baseSize > 0);
     std.debug.assert(std.math.isFinite(rectangle.x));

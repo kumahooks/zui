@@ -14,12 +14,7 @@ pub const Options = struct {
     alignment: Alignment = .left,
 };
 
-pub fn render(
-    text: [:0]const u8,
-    rectangle: raylib.Rectangle,
-    theme: *const zui.theme.Theme,
-    options: Options,
-) void {
+pub fn render(text: [:0]const u8, rectangle: raylib.Rectangle, theme: *const zui.theme.Theme, options: Options) void {
     std.debug.assert(theme.typography.font.texture.id != 0);
     std.debug.assert(theme.typography.font.baseSize > 0);
     std.debug.assert(std.math.isFinite(rectangle.x));
